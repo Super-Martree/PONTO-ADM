@@ -1,3 +1,4 @@
+import { apiFetch } from '../../utils/api';
 import {
   Activity,
   AlertCircle,
@@ -578,19 +579,19 @@ export default function Dashboard({ onNavigate }) {
 
     try {
       const [response, monthlyResponse, weeklyResponse, lojasResponse] = await Promise.all([
-        fetch('/api/ponto/dashboard', {
+        apiFetch('/api/ponto/dashboard', {
           cache: 'no-store',
           credentials: 'include',
         }),
-        fetch('/api/ponto/apuracao?periodo=mes', {
+        apiFetch('/api/ponto/apuracao?periodo=mes', {
           cache: 'no-store',
           credentials: 'include',
         }).catch(() => null),
-        fetch('/api/ponto/apuracao?periodo=semana', {
+        apiFetch('/api/ponto/apuracao?periodo=semana', {
           cache: 'no-store',
           credentials: 'include',
         }).catch(() => null),
-        fetch('/api/lojas', {
+        apiFetch('/api/lojas', {
           cache: 'no-store',
           credentials: 'include',
         }).catch(() => null),

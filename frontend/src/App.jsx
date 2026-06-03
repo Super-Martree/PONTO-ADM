@@ -1,3 +1,4 @@
+import { apiFetch } from './utils/api';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import './styles/global.css';
 import Layout from './components/Layout/Layout';
@@ -92,7 +93,7 @@ export default function App() {
       }
 
       try {
-        const response = await fetch('/api/auth/me', { credentials: 'include' });
+        const response = await apiFetch('/api/auth/me', { credentials: 'include' });
 
         if (!response.ok) {
           throw new Error('Sessao expirada.');
@@ -131,7 +132,7 @@ export default function App() {
   }
 
   function handleLogout() {
-    fetch('/api/auth/logout', {
+    apiFetch('/api/auth/logout', {
       method: 'POST',
       credentials: 'include',
     }).catch(() => {});

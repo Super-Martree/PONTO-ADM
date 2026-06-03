@@ -1,3 +1,4 @@
+import { apiFetch } from '../../utils/api';
 import {
   AlertCircle,
   AlertTriangle,
@@ -330,7 +331,7 @@ export default function TratativasAjustarPontoPage() {
 
   const loadFuncionarios = useCallback(async () => {
     try {
-      const response = await fetch('/api/funcionarios', {
+      const response = await apiFetch('/api/funcionarios', {
         cache: 'no-store',
         credentials: 'include',
       });
@@ -357,7 +358,7 @@ export default function TratativasAjustarPontoPage() {
 
     try {
       const params = new URLSearchParams({ funcionarioId, mes });
-      const response = await fetch(`/api/admin/ajustar-ponto?${params.toString()}`, {
+      const response = await apiFetch(`/api/admin/ajustar-ponto?${params.toString()}`, {
         cache: 'no-store',
         credentials: 'include',
       });
@@ -468,7 +469,7 @@ export default function TratativasAjustarPontoPage() {
     setFeedback('');
 
     try {
-      const response = await fetch(`/api/admin/ajustar-ponto/${funcionarioId}/${editingRow.data}`, {
+      const response = await apiFetch(`/api/admin/ajustar-ponto/${funcionarioId}/${editingRow.data}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -507,7 +508,7 @@ export default function TratativasAjustarPontoPage() {
 
     try {
       const ajustePath = ajuste?.id ? `/${ajuste.id}` : '';
-      const response = await fetch(`/api/admin/ajustar-ponto/${funcionarioId}/${auditRow.data}${ajustePath}`, {
+      const response = await apiFetch(`/api/admin/ajustar-ponto/${funcionarioId}/${auditRow.data}${ajustePath}`, {
         method: 'DELETE',
         credentials: 'include',
       });

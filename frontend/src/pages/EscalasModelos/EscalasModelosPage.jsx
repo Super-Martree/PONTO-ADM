@@ -1,3 +1,4 @@
+import { apiFetch } from '../../utils/api';
 import { CalendarDays, Pause, Play, Plus, Save, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import styles from './EscalasModelosPage.module.css';
@@ -410,7 +411,7 @@ export default function EscalasModelosPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/escalas', { cache: 'no-store', credentials: 'include' });
+      const response = await apiFetch('/api/escalas', { cache: 'no-store', credentials: 'include' });
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
@@ -449,7 +450,7 @@ export default function EscalasModelosPage() {
     setFeedback(null);
 
     try {
-      const response = await fetch('/api/escalas', {
+      const response = await apiFetch('/api/escalas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -475,7 +476,7 @@ export default function EscalasModelosPage() {
     setFeedback(null);
 
     try {
-      const response = await fetch(`/api/escalas/${escala.id}/status`, {
+      const response = await apiFetch(`/api/escalas/${escala.id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

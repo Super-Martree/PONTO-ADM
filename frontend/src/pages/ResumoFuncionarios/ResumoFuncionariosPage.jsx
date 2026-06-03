@@ -1,3 +1,4 @@
+import { apiFetch } from '../../utils/api';
 import {
   AlertTriangle,
   ChevronDown,
@@ -117,7 +118,7 @@ export default function ResumoFuncionariosPage() {
     setError('');
 
     try {
-      const response = await fetch(`/api/ponto/admin/resumo-funcionarios?${params.toString()}`, {
+      const response = await apiFetch(`/api/ponto/admin/resumo-funcionarios?${params.toString()}`, {
         cache: 'no-store',
         credentials: 'include',
       });

@@ -1,3 +1,4 @@
+import { apiFetch } from '../../utils/api';
 import { AlertCircle, ChevronDown, Edit2, Filter, Plus, Power, Search, Store, Users, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { formatDateBr, parseDateBrInput, todayBrDateInput, toBrDateInput } from '../../utils/date';
@@ -54,7 +55,7 @@ export default function Funcionarios() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/funcionarios', {
+      const response = await apiFetch('/api/funcionarios', {
         cache: 'no-store',
         credentials: 'include',
       });
@@ -74,7 +75,7 @@ export default function Funcionarios() {
 
   const loadLojas = useCallback(async () => {
     try {
-      const response = await fetch('/api/lojas?ativo=true', {
+      const response = await apiFetch('/api/lojas?ativo=true', {
         cache: 'no-store',
         credentials: 'include',
       });
@@ -171,7 +172,7 @@ export default function Funcionarios() {
     setModalOpen(true);
 
     try {
-      const response = await fetch('/api/funcionarios/next-matricula', {
+      const response = await apiFetch('/api/funcionarios/next-matricula', {
         cache: 'no-store',
         credentials: 'include',
       });
@@ -244,7 +245,7 @@ export default function Funcionarios() {
         payload.dataInicioPonto = dataInicioPonto;
       }
 
-      const response = await fetch(editingId ? `/api/funcionarios/${editingId}` : '/api/funcionarios', {
+      const response = await apiFetch(editingId ? `/api/funcionarios/${editingId}` : '/api/funcionarios', {
         method: editingId ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -270,7 +271,7 @@ export default function Funcionarios() {
     setFeedback(null);
 
     try {
-      const response = await fetch(`/api/funcionarios/${funcionario.id}/status`, {
+      const response = await apiFetch(`/api/funcionarios/${funcionario.id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -297,7 +298,7 @@ export default function Funcionarios() {
     setAuditError('');
 
     try {
-      const response = await fetch(`/api/funcionarios/${editingId}/auditoria`, {
+      const response = await apiFetch(`/api/funcionarios/${editingId}/auditoria`, {
         cache: 'no-store',
         credentials: 'include',
       });

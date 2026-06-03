@@ -1,3 +1,4 @@
+import { apiFetch } from '../../utils/api';
 import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, CalendarDays, Clock, ClipboardList, Download, Filter, Hourglass, LogOut } from 'lucide-react';
 import PontoDoMesPage from '../PontoDoMes/PontoDoMesPage';
@@ -168,7 +169,7 @@ export default function Ponto({ user, onLogout }) {
     setLoadingStatus(true);
 
     try {
-      const response = await fetch('/api/ponto/hoje', {
+      const response = await apiFetch('/api/ponto/hoje', {
         credentials: 'include',
       });
       const data = await readResponse(response);
@@ -192,7 +193,7 @@ export default function Ponto({ user, onLogout }) {
     setRegistrosError('');
 
     try {
-      const response = await fetch(`/api/ponto/registros?${params.toString()}`, {
+      const response = await apiFetch(`/api/ponto/registros?${params.toString()}`, {
         cache: 'no-store',
         credentials: 'include',
       });
@@ -212,7 +213,7 @@ export default function Ponto({ user, onLogout }) {
     setSaving(true);
 
     try {
-      const response = await fetch('/api/ponto/bater', {
+      const response = await apiFetch('/api/ponto/bater', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

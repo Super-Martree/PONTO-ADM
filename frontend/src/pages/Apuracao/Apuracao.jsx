@@ -1,3 +1,4 @@
+import { apiFetch } from '../../utils/api';
 import { CalendarDays, ChevronDown, Download, Filter, Search, Users } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { formatDateBr, parseDateBrInput, todayBrDateInput } from '../../utils/date';
@@ -66,7 +67,7 @@ export default function Apuracao({ initialState = {} }) {
         params.set('fim', parseDateBrInput(customEnd));
       }
 
-      const response = await fetch(`/api/ponto/apuracao/hoje?${params.toString()}`, {
+      const response = await apiFetch(`/api/ponto/apuracao/hoje?${params.toString()}`, {
         cache: 'no-store',
         credentials: 'include',
       });

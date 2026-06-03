@@ -1,3 +1,4 @@
+import { apiFetch } from '../../utils/api';
 import { Edit2, Plus, Power, Store } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import styles from './LojasPage.module.css';
@@ -34,7 +35,7 @@ export default function LojasPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/lojas', {
+      const response = await apiFetch('/api/lojas', {
         cache: 'no-store',
         credentials: 'include',
       });
@@ -73,7 +74,7 @@ export default function LojasPage() {
     setModalOpen(true);
 
     try {
-      const response = await fetch('/api/lojas/next-codigo', {
+      const response = await apiFetch('/api/lojas/next-codigo', {
         cache: 'no-store',
         credentials: 'include',
       });
@@ -115,7 +116,7 @@ export default function LojasPage() {
     setSaving(true);
 
     try {
-      const response = await fetch(editingId ? `/api/lojas/${editingId}` : '/api/lojas', {
+      const response = await apiFetch(editingId ? `/api/lojas/${editingId}` : '/api/lojas', {
         method: editingId ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -148,7 +149,7 @@ export default function LojasPage() {
     setFeedback(null);
 
     try {
-      const response = await fetch(`/api/lojas/${loja.id}/status`, {
+      const response = await apiFetch(`/api/lojas/${loja.id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

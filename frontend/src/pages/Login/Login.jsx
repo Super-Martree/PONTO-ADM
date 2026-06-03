@@ -1,3 +1,4 @@
+import { apiFetch } from '../../utils/api';
 import { useState } from 'react';
 
 const styles = `
@@ -166,7 +167,7 @@ export default function Login({ onLogin }) {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/auth/login', {
+      const response = await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

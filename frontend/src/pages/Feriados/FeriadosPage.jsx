@@ -1,3 +1,4 @@
+import { apiFetch } from '../../utils/api';
 import { CalendarDays, Edit2, Plus, Power } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import MonthPicker from '../../components/MonthPicker/MonthPicker';
@@ -41,7 +42,7 @@ export default function FeriadosPage() {
     setFeedback(null);
 
     try {
-      const response = await fetch('/api/feriados', {
+      const response = await apiFetch('/api/feriados', {
         cache: 'no-store',
         credentials: 'include',
       });
@@ -125,7 +126,7 @@ export default function FeriadosPage() {
     setSaving(true);
 
     try {
-      const response = await fetch(editingId ? `/api/feriados/${editingId}` : '/api/feriados', {
+      const response = await apiFetch(editingId ? `/api/feriados/${editingId}` : '/api/feriados', {
         method: editingId ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -155,7 +156,7 @@ export default function FeriadosPage() {
     setFeedback(null);
 
     try {
-      const response = await fetch(`/api/feriados/${feriado.id}/status`, {
+      const response = await apiFetch(`/api/feriados/${feriado.id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

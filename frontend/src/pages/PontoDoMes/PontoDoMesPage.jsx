@@ -1,3 +1,4 @@
+import { apiFetch } from '../../utils/api';
 import { CalendarDays, ChevronDown, RefreshCw, Search, SlidersHorizontal } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import MonthPicker from '../../components/MonthPicker/MonthPicker';
@@ -55,7 +56,7 @@ export default function PontoDoMesPage({ employeeMode = false, user = null }) {
     }
 
     try {
-      const response = await fetch('/api/funcionarios', {
+      const response = await apiFetch('/api/funcionarios', {
         cache: 'no-store',
         credentials: 'include',
       });
@@ -87,7 +88,7 @@ export default function PontoDoMesPage({ employeeMode = false, user = null }) {
 
     try {
       const endpoint = employeeMode ? '/api/ponto/escala-mes' : '/api/ponto/admin/ponto-do-mes';
-      const response = await fetch(`${endpoint}?${params.toString()}`, {
+      const response = await apiFetch(`${endpoint}?${params.toString()}`, {
         cache: 'no-store',
         credentials: 'include',
       });

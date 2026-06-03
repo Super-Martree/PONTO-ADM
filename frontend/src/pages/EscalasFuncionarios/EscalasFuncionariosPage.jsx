@@ -1,3 +1,4 @@
+import { apiFetch } from '../../utils/api';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -75,8 +76,8 @@ export default function EscalasFuncionariosPage() {
 
     try {
       const [funcionariosResponse, escalasResponse] = await Promise.all([
-        fetch('/api/funcionarios', { cache: 'no-store', credentials: 'include' }),
-        fetch('/api/escalas', { cache: 'no-store', credentials: 'include' }),
+        apiFetch('/api/funcionarios', { cache: 'no-store', credentials: 'include' }),
+        apiFetch('/api/escalas', { cache: 'no-store', credentials: 'include' }),
       ]);
       const funcionariosData = await funcionariosResponse.json().catch(() => ({}));
       const escalasData = await escalasResponse.json().catch(() => ({}));
@@ -195,7 +196,7 @@ export default function EscalasFuncionariosPage() {
       throw new Error(`Informe o inicio da escala de ${funcionario.nome} no formato dd/mm/aaaa.`);
     }
 
-    const response = await fetch(`/api/funcionarios/${funcionario.id}/escala`, {
+    const response = await apiFetch(`/api/funcionarios/${funcionario.id}/escala`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -264,7 +265,7 @@ export default function EscalasFuncionariosPage() {
     setSelectedHistoryId(null);
 
     try {
-      const response = await fetch(`/api/funcionarios/${funcionario.id}/escalas-historico`, {
+      const response = await apiFetch(`/api/funcionarios/${funcionario.id}/escalas-historico`, {
         cache: 'no-store',
         credentials: 'include',
       });
@@ -292,7 +293,7 @@ export default function EscalasFuncionariosPage() {
     setFeedback(null);
 
     try {
-      const response = await fetch(`/api/funcionarios/${historyFuncionario.id}/escalas-historico/${row.id}`, {
+      const response = await apiFetch(`/api/funcionarios/${historyFuncionario.id}/escalas-historico/${row.id}`, {
         method: 'DELETE',
         credentials: 'include',
       });
