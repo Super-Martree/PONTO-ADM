@@ -31,7 +31,7 @@ router.post("/login", loginLimiter, async (req, res, next) => {
 
     registerSuccessfulLogin(req.loginLimitKey);
     res.cookie(env.cookie.name, result.token, authCookieOptions);
-    res.json({ user: result.user });
+    res.json({ token: result.token, user: result.user });
   } catch (error) {
     next(error);
   }

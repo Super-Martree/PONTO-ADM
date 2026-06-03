@@ -179,6 +179,10 @@ export default function Login({ onLogin }) {
         throw new Error(data.message || 'Credenciais invalidas.');
       }
 
+      if (!data.token) {
+        throw new Error('Token de acesso ausente na resposta do login.');
+      }
+
       onLogin(data);
     } catch (err) {
       setError(err.message || 'Nao foi possivel entrar.');

@@ -1,4 +1,4 @@
-import { apiFetch } from './utils/api';
+import { apiFetch, clearAuthToken, setAuthToken } from './utils/api';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import './styles/global.css';
 import Layout from './components/Layout/Layout';
@@ -25,13 +25,15 @@ const TratativasHistoricoPage = lazy(() => import('./pages/TratativasHistorico')
 
 function readSession() {
   const rawUser = sessionStorage.getItem('user');
+  const token = sessionStorage.getItem('authToken');
 
-  if (!rawUser) return null;
+  if (!rawUser || !token) return null;
 
   try {
     return { user: JSON.parse(rawUser), verified: false };
   } catch {
     sessionStorage.removeItem('user');
+    clearAuthToken();
     return null;
   }
 }
@@ -107,6 +109,7 @@ export default function App() {
         }
       } catch {
         sessionStorage.removeItem('user');
+        clearAuthToken();
 
         if (!cancelled) {
           setSession(null);
@@ -126,6 +129,7 @@ export default function App() {
   }, [session]);
 
   function handleLogin(data) {
+    setAuthToken(data.token);
     sessionStorage.setItem('user', JSON.stringify(data.user));
     setSession({ user: data.user, verified: true });
     window.history.replaceState(null, '', data.user.role === 'admin' ? '/admin' : '/ponto');
@@ -137,6 +141,7 @@ export default function App() {
       credentials: 'include',
     }).catch(() => {});
     sessionStorage.removeItem('user');
+    clearAuthToken();
     setSession(null);
     window.history.replaceState(null, '', '/');
   }
