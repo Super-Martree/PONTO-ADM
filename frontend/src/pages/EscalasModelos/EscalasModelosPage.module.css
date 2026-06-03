@@ -1,0 +1,613 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pageHeader {
+  align-items: flex-start;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+}
+
+.pageHeader h2 {
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.pageHeader p,
+.modalHeader p {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.btnPrimary,
+.btnSecondary {
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 800;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.btnPrimary {
+  background: var(--green-mid);
+  color: #fff;
+}
+
+.btnPrimary:hover {
+  background: #1f7d3d;
+}
+
+.btnPrimary:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.btnSecondary {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text-secondary);
+}
+
+.success,
+.error {
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 8px 10px;
+}
+
+.success {
+  background: #edf7f0;
+  color: var(--green-mid);
+}
+
+.error {
+  background: #fff5f4;
+  color: var(--red);
+}
+
+.statsGrid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.statsGrid div {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+
+.statsGrid small {
+  color: var(--text-muted);
+  display: block;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.statsGrid strong {
+  color: var(--green-mid);
+  display: block;
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1.1;
+  margin-top: 4px;
+}
+
+.cardsGrid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+}
+
+.scaleCard,
+.emptyState,
+.modalCard,
+.formSection,
+.weekCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.scaleCard {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+}
+
+.inactiveCard {
+  opacity: 0.68;
+}
+
+.cardTop,
+.nameRow,
+.cardInfo,
+.cardActions,
+.sectionHeader,
+.weekHeader,
+.formActions,
+.fixedRow {
+  align-items: center;
+  display: flex;
+}
+
+.cardTop {
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.nameRow {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.nameRow h3 {
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.typeBadge,
+.statusActive,
+.statusInactive,
+.totalPill {
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 10.5px;
+  font-weight: 900;
+  padding: 4px 8px;
+}
+
+.type_fixa {
+  background: #edf7f0;
+  color: var(--green-mid);
+}
+
+.type_flexivel {
+  background: #fff8e8;
+  color: #9a5b00;
+}
+
+.type_ciclo {
+  background: #eef2ff;
+  color: #4052a3;
+}
+
+.cardInfo {
+  color: var(--text-muted);
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.cardInfo span {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.statusActive {
+  background: #edf7f0;
+  color: var(--green-mid);
+  font-style: normal;
+}
+
+.statusInactive {
+  background: #fff5f4;
+  color: var(--red);
+  font-style: normal;
+}
+
+.cardActions {
+  gap: 6px;
+}
+
+.cardActions button,
+.closeButton,
+.weekHeader button,
+.addButton {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  display: inline-flex;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0 9px;
+}
+
+.cardActions button {
+  width: 32px;
+}
+
+.cardActions button:hover,
+.closeButton:hover,
+.weekHeader button:hover,
+.addButton:hover {
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+.previewRow {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.dayChip {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 3px;
+  min-height: 46px;
+  padding: 7px 4px;
+  text-align: center;
+}
+
+.dayChip span {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.dayChip strong {
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.dayActive {
+  background: #f6fcf7;
+  color: var(--green-mid);
+}
+
+.dayOff {
+  background: #f3f5f6;
+  color: var(--text-muted);
+}
+
+.cyclePreview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.weekChip {
+  align-items: center;
+  background: #f6fcf7;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  gap: 8px;
+  padding: 8px 10px;
+}
+
+.weekChip span {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.weekChip strong {
+  color: var(--green-mid);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.emptyState {
+  align-items: center;
+  color: var(--text-muted);
+  display: grid;
+  font-size: 12px;
+  font-weight: 800;
+  justify-items: center;
+  min-height: 150px;
+  padding: 24px;
+}
+
+.modalOverlay {
+  align-items: center;
+  background: rgba(15, 23, 42, 0.38);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 18px;
+  position: fixed;
+  z-index: 50;
+}
+
+.modalCard {
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
+  display: grid;
+  gap: 14px;
+  max-height: calc(100vh - 36px);
+  max-width: 900px;
+  overflow-y: auto;
+  padding: 16px;
+  width: min(100%, 900px);
+}
+
+.modalHeader {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.modalHeader h3 {
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.closeButton {
+  height: 30px;
+  padding: 0;
+  width: 30px;
+}
+
+.form {
+  display: grid;
+  gap: 12px;
+}
+
+.typeGrid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.typeCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: grid;
+  gap: 3px;
+  min-height: 76px;
+  padding: 10px;
+  text-align: left;
+}
+
+.typeCard strong {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.typeCard span {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.typeActive {
+  background: #f6fcf7;
+  border-color: var(--green-mid);
+  box-shadow: 0 0 0 3px rgba(45, 181, 87, 0.12);
+}
+
+.formGrid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 150px;
+}
+
+.fieldGroup,
+.activeField,
+.dayEditor {
+  display: grid;
+  gap: 5px;
+}
+
+.fieldGroup span,
+.activeField span,
+.dayEditor span,
+.formSection h4 {
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.fieldGroup input,
+.dayEditor input,
+.hoursInput {
+  background: #fbfcfb;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  min-height: 34px;
+  outline: 0;
+  padding: 0 10px;
+  width: 100%;
+}
+
+.fieldGroup input:focus,
+.dayEditor input:focus,
+.hoursInput:focus {
+  background: #fff;
+  border-color: var(--green-mid);
+  box-shadow: 0 0 0 3px rgba(45, 181, 87, 0.12);
+}
+
+.inputError {
+  border-color: var(--red) !important;
+}
+
+.fieldGroup em {
+  color: var(--red);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.activeField {
+  align-content: end;
+  grid-template-columns: auto 1fr;
+}
+
+.activeField input {
+  height: 16px;
+  width: 16px;
+}
+
+.formSection {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.sectionHeader {
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.totalPill {
+  background: #edf7f0;
+  color: var(--green-mid);
+}
+
+.fixedRow {
+  gap: 8px;
+  max-width: 190px;
+}
+
+.fixedRow span {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.daysRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dayButton {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 900;
+  min-width: 48px;
+  padding: 7px 10px;
+}
+
+.dayButtonActive {
+  background: var(--green-mid);
+  border-color: var(--green-mid);
+  color: #fff;
+}
+
+.flexGrid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.dayEditor {
+  background: #fbfcfb;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  min-height: 98px;
+  padding: 8px;
+}
+
+.dayEditor strong {
+  align-items: center;
+  background: #f1f3f5;
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  display: flex;
+  font-size: 12px;
+  font-weight: 900;
+  justify-content: center;
+  min-height: 34px;
+}
+
+.dayEditor button {
+  background: transparent;
+  border: 0;
+  color: var(--green-mid);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 0;
+  text-align: left;
+}
+
+.weekCard {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+}
+
+.weekHeader {
+  gap: 8px;
+}
+
+.weekHeader strong {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.weekHeader span {
+  color: var(--green-mid);
+  font-size: 12px;
+  font-weight: 900;
+  margin-right: auto;
+}
+
+.addButton {
+  color: var(--green-mid);
+}
+
+.formActions {
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+@media (max-width: 900px) {
+  .pageHeader,
+  .cardTop {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .statsGrid,
+  .typeGrid,
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .flexGrid,
+  .previewRow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

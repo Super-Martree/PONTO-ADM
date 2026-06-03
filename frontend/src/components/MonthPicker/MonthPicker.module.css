@@ -1,0 +1,108 @@
+.root {
+  position: relative;
+  width: 160px;
+}
+
+.trigger {
+  align-items: center;
+  background: #fbfcfb;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  display: grid;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  gap: 8px;
+  grid-template-columns: 16px 1fr;
+  min-height: 34px;
+  padding: 0 9px;
+  text-align: left;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  width: 100%;
+}
+
+.trigger svg {
+  color: var(--text-muted);
+}
+
+.trigger:hover,
+.trigger:focus-visible,
+.root:has(.panel) .trigger {
+  border-color: var(--green-light);
+  box-shadow: 0 0 0 3px rgba(45, 181, 87, 0.12);
+  outline: 0;
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  left: 0;
+  padding: 8px;
+  position: absolute;
+  top: calc(100% + 6px);
+  width: 220px;
+  z-index: 30;
+}
+
+.header {
+  align-items: center;
+  display: grid;
+  grid-template-columns: 30px 1fr 30px;
+  margin-bottom: 8px;
+}
+
+.header strong {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.header button,
+.monthButton,
+.activeMonth {
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  display: inline-flex;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  justify-content: center;
+}
+
+.header button {
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  height: 30px;
+  width: 30px;
+}
+
+.monthGrid {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.monthButton,
+.activeMonth {
+  min-height: 32px;
+}
+
+.monthButton {
+  background: #fbfcfb;
+  color: var(--text-secondary);
+}
+
+.monthButton:hover {
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+
+.activeMonth {
+  background: var(--green-dark);
+  color: #fff;
+}

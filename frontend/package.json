@@ -1,0 +1,19 @@
+{
+  "name": "ponto-martree-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Frontend React da Martree para login, ponto e admin.",
+  "scripts": {
+    "dev": "vite --host 192.168.18.75 --port 3000",
+    "build": "vite build",
+    "preview": "vite preview --host 192.168.18.75 --port 3000",
+    "start": "vite --host 192.168.18.75 --port 3000"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^5.0.0",
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "vite": "^7.0.0"
+  }
+}

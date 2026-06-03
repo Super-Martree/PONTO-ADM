@@ -1,0 +1,63 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  /* Sidebar */
+  --sb-bg:        #142b1e;
+  --sb-hover:     #1e3f2b;
+  --sb-active:    #255c38;
+  --sb-border:    #1f3d2a;
+  --sb-text:      #c8dfd0;
+  --sb-text-muted:#7aab8a;
+  --sb-width:     210px;
+  --sb-width-col: 52px;
+
+  /* Main */
+  --main-bg:      #f4f6f5;
+  --header-bg:    #ffffff;
+  --header-h:     44px;
+
+  /* Accent */
+  --green-dark:   #142b1e;
+  --green-mid:    #255c38;
+  --green-light:  #2db557;
+  --green-badge:  #3ecf6e;
+
+  /* Text */
+  --text-primary: #1a2e22;
+  --text-secondary:#4b6858;
+  --text-muted:   #8aa899;
+
+  /* Card / surfaces */
+  --surface:      #ffffff;
+  --surface-2:    #f0f4f2;
+  --border:       #dde8e2;
+
+  /* Status */
+  --red:    #e03c3c;
+  --amber:  #e09a2a;
+  --blue:   #2a7ae0;
+
+  --radius: 6px;
+  --font: 'Inter', system-ui, sans-serif;
+  --transition: 0.18s ease;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #root {
+  height: 100%;
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--main-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+button { cursor: pointer; font-family: inherit; }
+a { text-decoration: none; color: inherit; }
+ul { list-style: none; }
+
+/* Scrollbar thin */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #3a6048; border-radius: 99px; }

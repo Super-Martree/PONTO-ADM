@@ -1,0 +1,92 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(12, 23, 17, 0.38);
+  backdrop-filter: blur(2px);
+}
+
+.modal {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  width: min(420px, 100%);
+  padding: 20px 48px 20px 20px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 20px 55px rgba(20, 43, 30, 0.22);
+}
+
+.iconWrapLoading,
+.iconWrapError {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+}
+
+.iconWrapLoading {
+  color: var(--green-mid);
+  background: #eaf7ef;
+}
+
+.iconWrapLoading svg {
+  animation: spin 0.9s linear infinite;
+}
+
+.iconWrapError {
+  color: var(--red);
+  background: #fff0ef;
+}
+
+.content {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.content h2 {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--text-primary);
+}
+
+.content p {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.closeButton {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  background: var(--surface);
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
+}
+
+.closeButton:hover {
+  color: var(--text-primary);
+  border-color: #c9d8d0;
+  background: var(--surface-2);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

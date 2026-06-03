@@ -1,0 +1,189 @@
+import { lazy, Suspense, useEffect, useState } from 'react';
+import './styles/global.css';
+import Layout from './components/Layout/Layout';
+import ApiStatusModal from './components/ApiStatusModal';
+import { installApiMonitor } from './utils/apiMonitor';
+
+installApiMonitor();
+
+const Login = lazy(() => import('./pages/Login'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Apuracao = lazy(() => import('./pages/Apuracao'));
+const EscalasModelosPage = lazy(() => import('./pages/EscalasModelos'));
+const EscalasFuncionariosPage = lazy(() => import('./pages/EscalasFuncionarios'));
+const FeriadosPage = lazy(() => import('./pages/Feriados'));
+const Funcionarios = lazy(() => import('./pages/Funcionarios'));
+const LojasPage = lazy(() => import('./pages/Lojas'));
+const PontoDoMesPage = lazy(() => import('./pages/PontoDoMes'));
+const ResumoFuncionariosPage = lazy(() => import('./pages/ResumoFuncionarios'));
+const Relatorios = lazy(() => import('./pages/Relatorios'));
+const Ponto = lazy(() => import('./pages/Ponto'));
+const TratativasAjustarPontoPage = lazy(() => import('./pages/TratativasAjustarPonto'));
+const TratativasPendentesPage = lazy(() => import('./pages/TratativasPendentes'));
+const TratativasHistoricoPage = lazy(() => import('./pages/TratativasHistorico'));
+
+function readSession() {
+  const rawUser = sessionStorage.getItem('user');
+
+  if (!rawUser) return null;
+
+  try {
+    return { user: JSON.parse(rawUser), verified: false };
+  } catch {
+    sessionStorage.removeItem('user');
+    return null;
+  }
+}
+
+function renderPage(page, props = {}) {
+  switch (page) {
+    case 'dashboard':
+      return <Dashboard onNavigate={props.onNavigate} />;
+    case 'apuracao':
+      return <Apuracao initialState={props.pageState} />;
+    case 'resumo-funcionarios':
+      return <ResumoFuncionariosPage />;
+    case 'ponto-do-mes':
+      return <PontoDoMesPage />;
+    case 'relatorios':
+      return <Relatorios />;
+    case 'funcionarios':
+      return <Funcionarios />;
+    case 'escalas':
+    case 'escalas-modelos':
+      return <EscalasModelosPage />;
+    case 'escalas-funcionarios':
+      return <EscalasFuncionariosPage />;
+    case 'feriados':
+      return <FeriadosPage />;
+    case 'lojas':
+      return <LojasPage />;
+    case 'tratativas-ajustar-ponto':
+      return <TratativasAjustarPontoPage />;
+    case 'tratativas-pendentes':
+      return <TratativasPendentesPage />;
+    case 'tratativas-historico':
+      return <TratativasHistoricoPage />;
+    default:
+      return <Dashboard />;
+  }
+}
+
+export default function App() {
+  const [session, setSession] = useState(readSession);
+  const [activePage, setActivePage] = useState('dashboard');
+  const [pageState, setPageState] = useState({});
+  const [checkingSession, setCheckingSession] = useState(Boolean(session));
+  const path = window.location.pathname;
+
+  useEffect(() => {
+    if (!session && path !== '/') {
+      window.history.replaceState(null, '', '/');
+    }
+  }, [path, session]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function verifySession() {
+      if (!session || session.verified) {
+        setCheckingSession(false);
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/auth/me', { credentials: 'include' });
+
+        if (!response.ok) {
+          throw new Error('Sessao expirada.');
+        }
+
+        const data = await response.json();
+
+        if (!cancelled) {
+          sessionStorage.setItem('user', JSON.stringify(data.user));
+          setSession({ user: data.user, verified: true });
+        }
+      } catch {
+        sessionStorage.removeItem('user');
+
+        if (!cancelled) {
+          setSession(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setCheckingSession(false);
+        }
+      }
+    }
+
+    verifySession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
+
+  function handleLogin(data) {
+    sessionStorage.setItem('user', JSON.stringify(data.user));
+    setSession({ user: data.user, verified: true });
+    window.history.replaceState(null, '', data.user.role === 'admin' ? '/admin' : '/ponto');
+  }
+
+  function handleLogout() {
+    fetch('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'include',
+    }).catch(() => {});
+    sessionStorage.removeItem('user');
+    setSession(null);
+    window.history.replaceState(null, '', '/');
+  }
+
+  function handleNavigate(page, nextState = {}) {
+    setPageState(nextState);
+    setActivePage(page);
+  }
+
+  if (checkingSession) {
+    return null;
+  }
+
+  if (!session) {
+    return (
+      <>
+        <Suspense fallback={null}>
+          <Login onLogin={handleLogin} />
+        </Suspense>
+        <ApiStatusModal />
+      </>
+    );
+  }
+
+  if (session.user.role !== 'admin') {
+    return (
+      <>
+        <Suspense fallback={null}>
+          <Ponto user={session.user} onLogout={handleLogout} />
+        </Suspense>
+        <ApiStatusModal />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Layout
+        activePage={activePage}
+        onNavigate={handleNavigate}
+        onLogout={handleLogout}
+        user={session.user}
+      >
+        <Suspense fallback={null}>
+          {renderPage(activePage, { onNavigate: handleNavigate, pageState })}
+        </Suspense>
+      </Layout>
+      <ApiStatusModal />
+    </>
+  );
+}
