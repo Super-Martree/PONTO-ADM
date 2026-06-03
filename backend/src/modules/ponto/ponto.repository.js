@@ -2,6 +2,8 @@ const { getPool, sql } = require("../../db/postgres");
 const env = require("../../config/env");
 const { sqlIdentifier } = require("../../utils/identifier");
 
+const APP_TIME_ZONE = "America/Sao_Paulo";
+
 function mapRegistro(row) {
   if (!row) return null;
 
@@ -33,7 +35,7 @@ async function ensureEscalasConfigColumn() {
 
 async function getTodayDate() {
   const pool = await getPool();
-  const result = await pool.request().query("SELECT to_char(current_date, 'YYYY-MM-DD') AS data");
+  const result = await pool.request().query(`SELECT to_char((now() AT TIME ZONE '${APP_TIME_ZONE}')::date, 'YYYY-MM-DD') AS data`);
   return result.recordset[0].data;
 }
 
@@ -50,7 +52,7 @@ async function findLastPunch(matricula, startDate = null) {
         to_char(hora_ponto, 'HH24:MI') AS hora_ponto,
         to_char(data_hora, 'YYYY-MM-DD HH24:MI:SS') AS data_hora,
         tipo,
-        FLOOR(EXTRACT(EPOCH FROM (now() - data_hora)))::int AS segundos_desde_ultima
+        FLOOR(EXTRACT(EPOCH FROM ((now() AT TIME ZONE '${APP_TIME_ZONE}') - data_hora)))::int AS segundos_desde_ultima
       FROM app_ponto_registros
       WHERE matricula = @matricula
         AND data_ponto >= COALESCE(@startDate::date, DATE '1900-01-01')
@@ -76,7 +78,7 @@ async function listTodayPunches(matricula, startDate = null) {
         tipo
       FROM app_ponto_registros
       WHERE matricula = @matricula
-        AND data_ponto = current_date
+        AND data_ponto = (now() AT TIME ZONE '${APP_TIME_ZONE}')::date
         AND data_ponto >= COALESCE(@startDate::date, DATE '1900-01-01')
       ORDER BY data_hora ASC, id ASC
     `);
@@ -133,7 +135,7 @@ async function getFuncionarioEscalaByMatricula(matricula) {
         SELECT h.escala_id, h.data_inicio
         FROM app_funcionario_escalas h
         WHERE h.matricula = CAST(u.${matriculaColumn} AS varchar(20))
-          AND h.data_inicio <= current_date
+          AND h.data_inicio <= (now() AT TIME ZONE '${APP_TIME_ZONE}')::date
         ORDER BY h.data_inicio DESC, h.id DESC
         LIMIT 1
       ) escala_hist ON true
@@ -152,8 +154,14 @@ async function insertPunch({ matricula, tipo }) {
     .input("matricula", sql.VarChar(20), matricula)
     .input("tipo", sql.VarChar(20), tipo)
     .query(`
-      INSERT INTO app_ponto_registros (matricula, data_ponto, hora_ponto, tipo)
-      VALUES (@matricula, current_date, localtime(0), @tipo)
+      INSERT INTO app_ponto_registros (matricula, data_ponto, hora_ponto, data_hora, tipo)
+      VALUES (
+        @matricula,
+        (now() AT TIME ZONE '${APP_TIME_ZONE}')::date,
+        (now() AT TIME ZONE '${APP_TIME_ZONE}')::time(0),
+        (now() AT TIME ZONE '${APP_TIME_ZONE}')::timestamp(0),
+        @tipo
+      )
       RETURNING
         id,
         matricula,

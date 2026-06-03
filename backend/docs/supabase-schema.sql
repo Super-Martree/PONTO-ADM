@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS app_ponto_registros (
   matricula varchar(20) NOT NULL,
   data_ponto date NOT NULL,
   hora_ponto time(0) NOT NULL,
-  data_hora timestamp(0) NOT NULL DEFAULT now(),
+  data_hora timestamp(0) NOT NULL DEFAULT (now() AT TIME ZONE 'America/Sao_Paulo'),
   tipo varchar(20) NOT NULL,
   created_at timestamp(0) NOT NULL DEFAULT now(),
   CONSTRAINT ck_app_ponto_registros_tipo CHECK (tipo IN ('entrada1', 'saida1', 'entrada2', 'saida2'))
