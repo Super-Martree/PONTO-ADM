@@ -1,4 +1,5 @@
 const { getPool, sql } = require("../../db/postgres");
+const { ensureEscalasConfigColumn } = require("../../db/schema");
 const env = require("../../config/env");
 const { sqlIdentifier } = require("../../utils/identifier");
 
@@ -79,13 +80,6 @@ function mapAjuste(row) {
     createdBy: row.createdBy,
     createdAt: row.createdAt,
   };
-}
-
-async function ensureEscalasConfigColumn() {
-  const pool = await getPool();
-  await pool.request().query(`
-    ALTER TABLE app_escalas ADD COLUMN IF NOT EXISTS configuracao_json text NULL
-  `);
 }
 
 async function findFuncionarioContextById(funcionarioId) {

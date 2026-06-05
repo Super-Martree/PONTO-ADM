@@ -48,7 +48,7 @@ module.exports = {
   },
   jwt: {
     secret: jwtSecret,
-    expiresIn: process.env.JWT_EXPIRES_IN || "8h",
+    expiresIn: process.env.JWT_EXPIRES_IN || "30d",
     issuer: process.env.JWT_ISSUER || "martree-ponto-api",
     audience: process.env.JWT_AUDIENCE || "martree-ponto-web",
   },

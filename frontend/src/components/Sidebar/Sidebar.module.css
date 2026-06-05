@@ -92,6 +92,10 @@
   margin-left: 0;
 }
 
+.mobileLogoutBtn {
+  display: none;
+}
+
 /* ── Nav ── */
 .nav {
   flex: 1;
@@ -304,18 +308,44 @@
     display: none;
   }
 
+  .mobileLogoutBtn {
+    align-items: center;
+    background: rgba(255, 255, 255, 0.06);
+    border: 0;
+    border-radius: 6px;
+    color: var(--sb-text-muted);
+    display: flex;
+    flex-shrink: 0;
+    height: 34px;
+    justify-content: center;
+    margin-left: auto;
+    width: 34px;
+  }
+
+  .mobileLogoutBtn:hover {
+    background: rgba(255, 100, 100, 0.1);
+    color: #ff7070;
+  }
+
   .nav {
     flex: 0 0 auto;
     overflow-x: auto;
     overflow-y: visible;
     padding: 6px;
+    -webkit-overflow-scrolling: touch;
   }
 
   .nav > ul {
     display: flex;
     align-items: flex-start;
+    flex-wrap: nowrap;
     gap: 4px;
     min-width: max-content;
+    padding-bottom: 2px;
+  }
+
+  .nav > ul > div {
+    min-width: 0;
   }
 
   .sectionLabel {
@@ -325,6 +355,8 @@
   .item,
   .groupHead {
     border-radius: 6px;
+    flex: 0 0 auto;
+    min-width: max-content;
     padding: 8px 10px;
   }
 
@@ -335,14 +367,16 @@
 
   .group {
     position: relative;
+    flex: 0 0 auto;
   }
 
   .submenu {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
-    z-index: 130;
-    min-width: 190px;
+    position: fixed;
+    top: 92px;
+    left: 8px;
+    right: 8px;
+    z-index: 1000;
+    min-width: 0;
     overflow: hidden;
     border: 1px solid var(--sb-border);
     border-radius: 8px;

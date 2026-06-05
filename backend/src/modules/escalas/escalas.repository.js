@@ -1,4 +1,5 @@
 const { getPool, sql } = require("../../db/postgres");
+const { ensureEscalasConfigColumn } = require("../../db/schema");
 
 const DIA_NOMES = {
   1: "Segunda",
@@ -9,13 +10,6 @@ const DIA_NOMES = {
   6: "Sabado",
   7: "Domingo",
 };
-
-async function ensureEscalasShape() {
-  const pool = await getPool();
-  await pool.request().query(`
-    ALTER TABLE app_escalas ADD COLUMN IF NOT EXISTS configuracao_json text NULL
-  `);
-}
 
 function formatMinutes(minutes) {
   const total = Number(minutes || 0);
@@ -76,7 +70,7 @@ function mapEscalas(rows) {
 }
 
 async function listEscalas() {
-  await ensureEscalasShape();
+  await ensureEscalasConfigColumn();
   const pool = await getPool();
   const result = await pool.request().query(`
     SELECT
@@ -98,7 +92,7 @@ async function listEscalas() {
 }
 
 async function findEscalaById(id) {
-  await ensureEscalasShape();
+  await ensureEscalasConfigColumn();
   const pool = await getPool();
   const result = await pool.request()
     .input("id", sql.Int, id)
@@ -123,7 +117,7 @@ async function findEscalaById(id) {
 }
 
 async function createEscala(data) {
-  await ensureEscalasShape();
+  await ensureEscalasConfigColumn();
   const pool = await getPool();
   const transaction = new sql.Transaction(pool);
 
@@ -163,7 +157,7 @@ async function createEscala(data) {
 }
 
 async function updateEscala(id, data) {
-  await ensureEscalasShape();
+  await ensureEscalasConfigColumn();
   const pool = await getPool();
   const transaction = new sql.Transaction(pool);
 

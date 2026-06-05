@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   LayoutDashboard,
   Clock,
@@ -67,8 +67,14 @@ const MENU = [
 
 export default function Sidebar({ activePage, onNavigate, onLogout, user }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [openGroup, setOpenGroup] = useState(null);
   const isChildActive = (group) => group.children?.some((child) => child.id === activePage);
   const firstName = String(user?.name || user?.matricula || 'Admin').trim().split(/\s+/)[0];
+
+  useEffect(() => {
+    const activeGroup = MENU.find((item) => item.children?.some((child) => child.id === activePage));
+    setOpenGroup(activeGroup?.id || null);
+  }, [activePage]);
 
   function renderChild(child) {
     return (
@@ -101,6 +107,9 @@ export default function Sidebar({ activePage, onNavigate, onLogout, user }) {
         >
           {collapsed ? <PanelLeftOpen size={14} /> : <PanelLeftClose size={14} />}
         </button>
+        <button className={styles.mobileLogoutBtn} title="Sair" onClick={onLogout} type="button">
+          <LogOut size={15} />
+        </button>
       </div>
 
       <nav className={styles.nav}>
@@ -110,6 +119,7 @@ export default function Sidebar({ activePage, onNavigate, onLogout, user }) {
             const showSection = item.section && item.section !== prevSection;
 
             if (item.children) {
+              const childActive = isChildActive(item);
               return (
                 <div key={item.id}>
                   {showSection && !collapsed && (
@@ -119,8 +129,9 @@ export default function Sidebar({ activePage, onNavigate, onLogout, user }) {
                     icon={item.icon}
                     label={item.label}
                     collapsed={collapsed}
-                    hasActive={isChildActive(item)}
-                    defaultOpen={isChildActive(item)}
+                    hasActive={childActive}
+                    open={openGroup === item.id}
+                    onToggle={() => setOpenGroup((current) => (current === item.id ? null : item.id))}
                   >
                     {item.children.map(renderChild)}
                   </SidebarGroup>

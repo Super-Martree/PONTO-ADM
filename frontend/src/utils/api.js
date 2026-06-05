@@ -1,6 +1,20 @@
 const API_URL = import.meta.env.VITE_API_URL;
 const TOKEN_KEY = 'authToken';
 
+function getStoredValue(key) {
+  return localStorage.getItem(key) || sessionStorage.getItem(key);
+}
+
+function setStoredValue(key, value) {
+  localStorage.setItem(key, value);
+  sessionStorage.removeItem(key);
+}
+
+function removeStoredValue(key) {
+  localStorage.removeItem(key);
+  sessionStorage.removeItem(key);
+}
+
 function buildApiUrl(path) {
   if (!API_URL || typeof path !== 'string' || !path.startsWith('/api/')) {
     return path;
@@ -40,17 +54,17 @@ function withAuthHeader(init = {}) {
 }
 
 export function getAuthToken() {
-  return sessionStorage.getItem(TOKEN_KEY);
+  return getStoredValue(TOKEN_KEY);
 }
 
 export function setAuthToken(token) {
   if (token) {
-    sessionStorage.setItem(TOKEN_KEY, token);
+    setStoredValue(TOKEN_KEY, token);
   }
 }
 
 export function clearAuthToken() {
-  sessionStorage.removeItem(TOKEN_KEY);
+  removeStoredValue(TOKEN_KEY);
 }
 
 export { API_URL, TOKEN_KEY };

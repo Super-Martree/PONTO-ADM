@@ -1,4 +1,5 @@
 const { getPool, sql } = require("../../db/postgres");
+const { ensureEscalasConfigColumn } = require("../../db/schema");
 const env = require("../../config/env");
 const { sqlIdentifier } = require("../../utils/identifier");
 
@@ -24,13 +25,6 @@ function mapFeriado(row) {
     data: row.data,
     descricao: row.descricao,
   };
-}
-
-async function ensureEscalasConfigColumn() {
-  const pool = await getPool();
-  await pool.request().query(`
-    ALTER TABLE app_escalas ADD COLUMN IF NOT EXISTS configuracao_json text NULL
-  `);
 }
 
 async function getTodayDate() {

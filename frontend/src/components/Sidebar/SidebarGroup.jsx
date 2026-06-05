@@ -1,19 +1,14 @@
-import { useState, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import styles from './Sidebar.module.css';
 
-export default function SidebarGroup({ icon, label, children, collapsed, defaultOpen = false, hasActive }) {
-  const [open, setOpen] = useState(defaultOpen || hasActive);
-
-  // auto-open if child is active
-  useEffect(() => { if (hasActive) setOpen(true); }, [hasActive]);
-
+export default function SidebarGroup({ icon, label, children, collapsed, hasActive, open, onToggle }) {
   return (
     <li className={styles.group}>
       <button
         className={`${styles.groupHead} ${hasActive ? styles.groupHeadActive : ''}`}
-        onClick={() => !collapsed && setOpen(v => !v)}
+        onClick={() => !collapsed && onToggle()}
         title={collapsed ? label : undefined}
+        type="button"
       >
         <span className={styles.itemIcon}>{icon}</span>
         {!collapsed && (

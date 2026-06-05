@@ -309,19 +309,19 @@ export default function PontoDoMesPage({ employeeMode = false, user = null }) {
               )}
               {!loading && rows.map((row) => (
                 <tr key={row.data}>
-                  <td className={styles.dateCell}>{formatDate(row.data)}</td>
-                  <td>{row.diaSemana}</td>
-                  <td>{row.escala || activeEscala}</td>
-                  <td>{row.entrada1 || '-'}</td>
-                  <td>{row.saida1 || '-'}</td>
-                  <td>{row.entrada2 || '-'}</td>
-                  <td>{row.saida2 || '-'}</td>
-                  <td>{row.esperado}</td>
-                  <td>{row.trabalhado}</td>
-                  <td className={row.saldoMinutos === null ? undefined : Number(row.saldoMinutos || 0) < 0 ? styles.negative : styles.positive}>
+                  <td data-label="Data" className={styles.dateCell}>{formatDate(row.data)}</td>
+                  <td data-label="Dia">{row.diaSemana}</td>
+                  <td data-label="Escala">{row.escala || activeEscala}</td>
+                  <td data-label="Entrada 1">{row.entrada1 || '-'}</td>
+                  <td data-label="Saida 1">{row.saida1 || '-'}</td>
+                  <td data-label="Entrada 2">{row.entrada2 || '-'}</td>
+                  <td data-label="Saida 2">{row.saida2 || '-'}</td>
+                  <td data-label="Esperado">{row.esperado}</td>
+                  <td data-label="Trabalhado">{row.trabalhado}</td>
+                  <td data-label="Saldo" className={row.saldoMinutos === null ? undefined : Number(row.saldoMinutos || 0) < 0 ? styles.negative : styles.positive}>
                     {row.saldo || '-'}
                   </td>
-                  <td>
+                  <td data-label="Status">
                     {row.status ? (
                       <span className={`${styles.statusBadge} ${styles[STATUS_CLASS[row.status] || 'statusIncompleto']}`}>
                         {row.status}

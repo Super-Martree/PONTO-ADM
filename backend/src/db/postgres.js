@@ -5,7 +5,9 @@ const pool = new Pool({
   connectionString: env.db.url,
   ssl: env.db.ssl ? { rejectUnauthorized: false } : false,
   max: 10,
-  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 600000,
+  keepAlive: true,
 });
 
 function toPgQuery(query, params) {
@@ -109,7 +111,12 @@ async function getPool() {
   };
 }
 
+async function warmPool() {
+  await pool.query("SELECT 1");
+}
+
 module.exports = {
   getPool,
   sql,
+  warmPool,
 };

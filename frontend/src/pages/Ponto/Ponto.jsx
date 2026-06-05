@@ -249,7 +249,7 @@ export default function Ponto({ user, onLogout }) {
             onClick={() => setActiveTab('ponto')}
           >
             <Clock size={15} />
-            Ponto
+            <span className={styles.navLabel}>Ponto</span>
           </button>
           <button
             className={`${styles.navBtn} ${activeTab === 'registros' ? styles.active : ''}`}
@@ -257,7 +257,7 @@ export default function Ponto({ user, onLogout }) {
             onClick={() => setActiveTab('registros')}
           >
             <ClipboardList size={15} />
-            Registros
+            <span className={styles.navLabel}>Registros</span>
           </button>
           <button
             className={`${styles.navBtn} ${activeTab === 'escala-mes' ? styles.active : ''}`}
@@ -265,7 +265,7 @@ export default function Ponto({ user, onLogout }) {
             onClick={() => setActiveTab('escala-mes')}
           >
             <CalendarDays size={15} />
-            Escala Mês
+            <span className={styles.navLabel}>Escala Mês</span>
           </button>
         </nav>
 

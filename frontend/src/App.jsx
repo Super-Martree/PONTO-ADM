@@ -24,18 +24,29 @@ const TratativasPendentesPage = lazy(() => import('./pages/TratativasPendentes')
 const TratativasHistoricoPage = lazy(() => import('./pages/TratativasHistorico'));
 
 function readSession() {
-  const rawUser = sessionStorage.getItem('user');
-  const token = sessionStorage.getItem('authToken');
+  const rawUser = localStorage.getItem('user') || sessionStorage.getItem('user');
+  const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
 
   if (!rawUser || !token) return null;
 
   try {
     return { user: JSON.parse(rawUser), verified: false };
   } catch {
+    localStorage.removeItem('user');
     sessionStorage.removeItem('user');
     clearAuthToken();
     return null;
   }
+}
+
+function saveUser(user) {
+  localStorage.setItem('user', JSON.stringify(user));
+  sessionStorage.removeItem('user');
+}
+
+function clearUser() {
+  localStorage.removeItem('user');
+  sessionStorage.removeItem('user');
 }
 
 function renderPage(page, props = {}) {
@@ -104,11 +115,11 @@ export default function App() {
         const data = await response.json();
 
         if (!cancelled) {
-          sessionStorage.setItem('user', JSON.stringify(data.user));
+          saveUser(data.user);
           setSession({ user: data.user, verified: true });
         }
       } catch {
-        sessionStorage.removeItem('user');
+        clearUser();
         clearAuthToken();
 
         if (!cancelled) {
@@ -130,7 +141,7 @@ export default function App() {
 
   function handleLogin(data) {
     setAuthToken(data.token);
-    sessionStorage.setItem('user', JSON.stringify(data.user));
+    saveUser(data.user);
     setSession({ user: data.user, verified: true });
     window.history.replaceState(null, '', data.user.role === 'admin' ? '/admin' : '/ponto');
   }
@@ -140,7 +151,7 @@ export default function App() {
       method: 'POST',
       credentials: 'include',
     }).catch(() => {});
-    sessionStorage.removeItem('user');
+    clearUser();
     clearAuthToken();
     setSession(null);
     window.history.replaceState(null, '', '/');

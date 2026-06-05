@@ -388,4 +388,95 @@
   .indicators {
     grid-template-columns: 1fr;
   }
+
+  .tableCard {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    overflow: visible;
+  }
+
+  .tableToolbar {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 10px;
+  }
+
+  .tableScroller {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .table {
+    border-collapse: separate;
+    border-spacing: 0 10px;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .table thead {
+    display: none;
+  }
+
+  .table tbody,
+  .table tr,
+  .table td {
+    display: block;
+    width: 100%;
+  }
+
+  .table tbody tr {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: 0 8px 20px rgba(32, 55, 39, 0.08);
+    overflow: hidden;
+  }
+
+  .table tbody tr:nth-child(even),
+  .table tbody tr:hover {
+    background: var(--surface);
+  }
+
+  .table td {
+    align-items: center;
+    border-right: 0;
+    display: flex;
+    gap: 12px;
+    height: auto;
+    justify-content: space-between;
+    min-height: 36px;
+    padding: 9px 12px;
+    text-align: right;
+    white-space: normal;
+  }
+
+  .table td::before {
+    color: var(--text-muted);
+    content: attr(data-label);
+    flex: 0 0 92px;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.4px;
+    text-align: left;
+    text-transform: uppercase;
+  }
+
+  .table td[colspan] {
+    display: block;
+    text-align: center;
+  }
+
+  .table td[colspan]::before {
+    content: none;
+  }
+
+  .dateCell {
+    background: var(--surface-2);
+    color: var(--text-primary) !important;
+  }
+
+  .statusBadge {
+    min-width: 0;
+  }
 }
