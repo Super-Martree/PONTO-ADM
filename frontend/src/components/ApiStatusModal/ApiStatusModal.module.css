@@ -22,7 +22,6 @@
   box-shadow: 0 20px 55px rgba(20, 43, 30, 0.22);
 }
 
-.iconWrapLoading,
 .iconWrapError {
   display: grid;
   place-items: center;
@@ -31,18 +30,27 @@
   border-radius: 8px;
 }
 
-.iconWrapLoading {
-  color: var(--green-mid);
-  background: #eaf7ef;
-}
-
-.iconWrapLoading svg {
-  animation: spin 0.9s linear infinite;
-}
-
 .iconWrapError {
   color: var(--red);
   background: #fff0ef;
+}
+
+.loadingBox {
+  display: grid;
+  place-items: center;
+  width: 116px;
+  height: 116px;
+  border: 1px solid rgba(210, 226, 217, 0.85);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 20px 55px rgba(20, 43, 30, 0.2);
+}
+
+.loadingLogo {
+  width: 78px;
+  height: 78px;
+  object-fit: contain;
+  animation: pulse 1.1s ease-in-out infinite;
 }
 
 .content {
@@ -85,8 +93,15 @@
   background: var(--surface-2);
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(0.96);
+    opacity: 0.72;
+  }
+
+  50% {
+    transform: scale(1);
+    opacity: 1;
   }
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Loader2, X } from 'lucide-react';
+import { AlertTriangle, X } from 'lucide-react';
 import { API_ACTIVITY_EVENT } from '../../utils/apiMonitor';
 import styles from './ApiStatusModal.module.css';
 
@@ -53,14 +53,8 @@ export default function ApiStatusModal() {
 
   return (
     <div className={styles.overlay} role="presentation">
-      <div className={styles.modal} role="dialog" aria-modal="true" aria-live="polite" aria-labelledby="api-loading-title">
-        <div className={styles.iconWrapLoading}>
-          <Loader2 size={24} />
-        </div>
-        <div className={styles.content}>
-          <h2 id="api-loading-title">{activity.title}</h2>
-          <p>Aguarde enquanto a operacao e concluida.</p>
-        </div>
+      <div className={styles.loadingBox} role="status" aria-live="polite" aria-label={activity.title}>
+        <img className={styles.loadingLogo} src="/martri-mascote.png" alt="" />
       </div>
     </div>
   );
