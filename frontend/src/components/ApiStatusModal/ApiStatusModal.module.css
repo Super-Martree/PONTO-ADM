@@ -40,16 +40,13 @@
   place-items: center;
   width: 116px;
   height: 116px;
-  border: 1px solid rgba(210, 226, 217, 0.85);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 20px 55px rgba(20, 43, 30, 0.2);
 }
 
 .loadingLogo {
-  width: 78px;
-  height: 78px;
+  width: 92px;
+  height: 92px;
   object-fit: contain;
+  filter: drop-shadow(0 10px 20px rgba(12, 23, 17, 0.22));
   animation: pulse 1.1s ease-in-out infinite;
 }
 
