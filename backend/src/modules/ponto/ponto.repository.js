@@ -139,7 +139,13 @@ async function getFuncionarioEscalaByMatricula(matricula) {
         ORDER BY h.data_inicio DESC, h.id DESC
         LIMIT 1
       ) escala_hist ON true
-      LEFT JOIN app_escalas e ON e.id = COALESCE(escala_hist.escala_id, u."EscalaId")
+      LEFT JOIN LATERAL (
+        SELECT true AS has_history
+        FROM app_funcionario_escalas h
+        WHERE h.matricula = CAST(u.${matriculaColumn} AS varchar(20))
+        LIMIT 1
+      ) escala_historico ON true
+      LEFT JOIN app_escalas e ON e.id = CASE WHEN escala_historico.has_history THEN escala_hist.escala_id ELSE u."EscalaId" END
       LEFT JOIN app_escala_dias d ON d.escala_id = e.id AND d.ativo = true
       WHERE CAST(u.${matriculaColumn} AS varchar(20)) = @matricula
       ORDER BY d.dia_semana ASC
@@ -243,7 +249,13 @@ async function listAdminTodayApuracao(apuracaoDate) {
         ORDER BY h.data_inicio DESC, h.id DESC
         LIMIT 1
       ) escala_hist ON true
-      LEFT JOIN app_escalas e ON e.id = COALESCE(escala_hist.escala_id, u."EscalaId")
+      LEFT JOIN LATERAL (
+        SELECT true AS has_history
+        FROM app_funcionario_escalas h
+        WHERE h.matricula = CAST(u.${matriculaColumn} AS varchar(20))
+        LIMIT 1
+      ) escala_historico ON true
+      LEFT JOIN app_escalas e ON e.id = CASE WHEN escala_historico.has_history THEN escala_hist.escala_id ELSE u."EscalaId" END
       LEFT JOIN app_escala_dias ed
         ON ed.escala_id = e.id
         AND ed.ativo = true
@@ -307,7 +319,13 @@ async function listAdminMonthlyPunches({ matricula, startDate, endDate }) {
       ORDER BY fh.data_inicio DESC, fh.id DESC
       LIMIT 1
     ) h ON true
-    LEFT JOIN app_escalas e ON e.id = COALESCE(h.escala_id, u."EscalaId")
+    LEFT JOIN LATERAL (
+      SELECT true AS has_history
+      FROM app_funcionario_escalas fh
+      WHERE fh.matricula = CAST(u.${matriculaColumn} AS varchar(20))
+      LIMIT 1
+    ) escala_historico ON true
+    LEFT JOIN app_escalas e ON e.id = CASE WHEN escala_historico.has_history THEN h.escala_id ELSE u."EscalaId" END
     LEFT JOIN app_escala_dias ed ON ed.escala_id = e.id AND ed.ativo = true
     LEFT JOIN app_ponto_registros p
       ON p.matricula = CAST(u.${matriculaColumn} AS varchar(20))

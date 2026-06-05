@@ -1,5 +1,7 @@
 const { getPool, sql } = require("../../db/postgres");
 
+const APP_TIME_ZONE = "America/Sao_Paulo";
+
 async function ensureFuncionarioSchema() {
   const pool = await getPool();
   await pool.request().query(`
@@ -79,7 +81,7 @@ const FUNCIONARIO_SELECT = `
     u."LojaId" AS "lojaId",
     l.nome AS "lojaNome",
     u."SetorId" AS "setorId",
-    COALESCE(escala_atual.escala_id, u."EscalaId") AS "escalaId",
+    e.id AS "escalaId",
     e.nome AS "escalaNome",
     to_char(escala_atual.data_inicio, 'YYYY-MM-DD') AS "escalaDataInicio",
     to_char(u."DataInicioPonto", 'YYYY-MM-DD') AS "dataInicioPonto",
@@ -91,10 +93,17 @@ const FUNCIONARIO_SELECT = `
     SELECT h.escala_id, h.data_inicio
     FROM app_funcionario_escalas h
     WHERE h.matricula = CAST(u."Matricula" AS varchar(30))
+      AND h.data_inicio <= (now() AT TIME ZONE '${APP_TIME_ZONE}')::date
     ORDER BY h.data_inicio DESC, h.id DESC
     LIMIT 1
   ) escala_atual ON true
-  LEFT JOIN app_escalas e ON e.id = COALESCE(escala_atual.escala_id, u."EscalaId")
+  LEFT JOIN LATERAL (
+    SELECT true AS has_history
+    FROM app_funcionario_escalas h
+    WHERE h.matricula = CAST(u."Matricula" AS varchar(30))
+    LIMIT 1
+  ) escala_historico ON true
+  LEFT JOIN app_escalas e ON e.id = CASE WHEN escala_historico.has_history THEN escala_atual.escala_id ELSE u."EscalaId" END
 `;
 
 async function listFuncionarios() {
@@ -277,6 +286,26 @@ async function findLatestFuncionarioEscalaHistorico(matricula) {
   return result.recordset[0] || null;
 }
 
+async function findCurrentFuncionarioEscalaHistorico(matricula) {
+  const pool = await getPool();
+  const result = await pool.request()
+    .input("matricula", sql.VarChar(30), matricula)
+    .query(`
+      SELECT
+        h.escala_id AS "escalaId",
+        e.nome AS "escalaNome",
+        to_char(h.data_inicio, 'YYYY-MM-DD') AS "dataInicio"
+      FROM app_funcionario_escalas h
+      LEFT JOIN app_escalas e ON e.id = h.escala_id
+      WHERE h.matricula = @matricula
+        AND h.data_inicio <= (now() AT TIME ZONE '${APP_TIME_ZONE}')::date
+      ORDER BY h.data_inicio DESC, h.id DESC
+      LIMIT 1
+    `);
+
+  return result.recordset[0] || null;
+}
+
 async function updateFuncionario(id, data) {
   const pool = await getPool();
   const setClauses = [
@@ -415,6 +444,7 @@ module.exports = {
   deleteFuncionarioEscalasAfter,
   ensureFuncionarioSchema,
   findFuncionarioEscalaAnterior,
+  findCurrentFuncionarioEscalaHistorico,
   findLatestFuncionarioEscalaHistorico,
   findFuncionarioById,
   findFuncionarioByMatricula,

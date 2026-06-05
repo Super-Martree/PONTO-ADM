@@ -2,6 +2,8 @@ const { getPool, sql } = require("../../db/postgres");
 const env = require("../../config/env");
 const { sqlIdentifier } = require("../../utils/identifier");
 
+const APP_TIME_ZONE = "America/Sao_Paulo";
+
 async function ensureAjustesSchema({ required = false } = {}) {
   const pool = await getPool();
   const result = await pool.request().query(`
@@ -117,11 +119,17 @@ async function findFuncionarioContextById(funcionarioId) {
         SELECT h.escala_id, h.data_inicio
         FROM app_funcionario_escalas h
         WHERE h.matricula = CAST(u.${matriculaColumn} AS varchar(20))
-          AND h.data_inicio <= current_date
+          AND h.data_inicio <= (now() AT TIME ZONE '${APP_TIME_ZONE}')::date
         ORDER BY h.data_inicio DESC, h.id DESC
         LIMIT 1
       ) escala_hist ON true
-      LEFT JOIN app_escalas e ON e.id = COALESCE(escala_hist.escala_id, u."EscalaId")
+      LEFT JOIN LATERAL (
+        SELECT true AS has_history
+        FROM app_funcionario_escalas h
+        WHERE h.matricula = CAST(u.${matriculaColumn} AS varchar(20))
+        LIMIT 1
+      ) escala_historico ON true
+      LEFT JOIN app_escalas e ON e.id = CASE WHEN escala_historico.has_history THEN escala_hist.escala_id ELSE u."EscalaId" END
       LEFT JOIN app_escala_dias d ON d.escala_id = e.id AND d.ativo = true
       WHERE u."Id" = @funcionarioId
         AND u.${activeColumn} = true

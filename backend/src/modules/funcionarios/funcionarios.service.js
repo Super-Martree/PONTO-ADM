@@ -2,6 +2,7 @@ const {
   createFuncionario,
   deleteFuncionarioEscalaHistorico,
   findFuncionarioById,
+  findCurrentFuncionarioEscalaHistorico,
   findLatestFuncionarioEscalaHistorico,
   findFuncionarioByMatricula,
   getNextMatricula,
@@ -72,6 +73,15 @@ function parseDateOnly(value) {
 
   const date = new Date(`${text}T00:00:00.000Z`);
   return Number.isNaN(date.getTime()) ? null : text;
+}
+
+function getLocalDateOnly() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 }
 
 function normalizePayload(payload = {}, { requireStartDate = true } = {}) {
@@ -236,12 +246,15 @@ async function atualizarEscalaFuncionario(user, idValue, payload) {
     throw createHttpError(400, "Data de inicio da escala obrigatoria.");
   }
 
-  const funcionario = await updateFuncionarioEscala(id, escalaId);
   await upsertFuncionarioEscalaHistorico({
     matricula: current.matricula,
     escalaId,
     dataInicio,
   });
+  const currentEscalaId = dataInicio <= getLocalDateOnly()
+    ? escalaId
+    : current.escalaId || null;
+  const funcionario = await updateFuncionarioEscala(id, currentEscalaId);
 
   const changes = [];
   addAuditChange(changes, {
@@ -294,8 +307,9 @@ async function excluirHistoricoEscalaFuncionario(user, idValue, historicoIdValue
     throw createHttpError(404, "Registro de escala nao encontrado.");
   }
 
+  const currentEffective = await findCurrentFuncionarioEscalaHistorico(current.matricula);
   const latest = await findLatestFuncionarioEscalaHistorico(current.matricula);
-  const funcionario = await updateFuncionarioEscala(id, latest?.escalaId || null);
+  const funcionario = await updateFuncionarioEscala(id, currentEffective?.escalaId || null);
   await insertFuncionarioAuditoria([{
     funcionarioId: current.id,
     matricula: current.matricula,
