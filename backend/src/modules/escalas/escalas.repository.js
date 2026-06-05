@@ -150,7 +150,7 @@ async function createEscala(data) {
         .input("metaMinutos", sql.Int, dia.meta_minutos)
         .query(`
           INSERT INTO app_escala_dias (escala_id, dia_semana, meta_minutos, ativo)
-          VALUES (@escalaId, @diaSemana, @metaMinutos, 1)
+          VALUES (@escalaId, @diaSemana, @metaMinutos, true)
         `);
     }
 
@@ -193,7 +193,7 @@ async function updateEscala(id, data) {
         .input("metaMinutos", sql.Int, dia.meta_minutos)
         .query(`
           INSERT INTO app_escala_dias (escala_id, dia_semana, meta_minutos, ativo)
-          VALUES (@escalaId, @diaSemana, @metaMinutos, 1)
+          VALUES (@escalaId, @diaSemana, @metaMinutos, true)
           ON CONFLICT (escala_id, dia_semana)
           DO UPDATE SET meta_minutos = EXCLUDED.meta_minutos, ativo = true
         `);
