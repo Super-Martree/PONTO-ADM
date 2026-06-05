@@ -733,3 +733,24 @@
     grid-column: auto;
   }
 }
+
+@media (max-width: 620px) {
+  .pageActions,
+  .formActions,
+  .modalHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pageActions button,
+  .formActions button {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .modalCard {
+    max-height: calc(100dvh - 24px);
+    overflow: auto;
+    padding: 14px;
+  }
+}

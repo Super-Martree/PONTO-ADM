@@ -18,3 +18,25 @@
   padding: 18px 22px;
   background: var(--main-bg);
 }
+
+@media (max-width: 760px) {
+  .root {
+    flex-direction: column;
+    height: 100dvh;
+    min-height: 100dvh;
+  }
+
+  .main {
+    min-height: 0;
+  }
+
+  .content {
+    padding: 12px;
+  }
+}
+
+@media (max-width: 420px) {
+  .content {
+    padding: 10px;
+  }
+}

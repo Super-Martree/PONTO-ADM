@@ -795,3 +795,34 @@
     justify-self: start;
   }
 }
+
+@media (max-width: 560px) {
+  .topActions button,
+  .footerCount button,
+  .pagination button {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .formActions,
+  .modalHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .formActions button {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .modalOverlay {
+    align-items: flex-start;
+    padding: 12px;
+  }
+
+  .modalCard {
+    max-height: calc(100dvh - 24px);
+    overflow: auto;
+    padding: 14px;
+  }
+}

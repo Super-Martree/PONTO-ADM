@@ -667,3 +667,22 @@
   }
 
 }
+
+@media (max-width: 420px) {
+  .main {
+    padding: 12px;
+  }
+
+  .shell {
+    padding: 18px;
+  }
+
+  .nav {
+    grid-template-columns: 1fr;
+  }
+
+  .indicators,
+  .punchPreview {
+    grid-template-columns: 1fr;
+  }
+}

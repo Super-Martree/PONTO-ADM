@@ -371,3 +371,21 @@
     width: 100%;
   }
 }
+
+@media (max-width: 620px) {
+  .header,
+  .headerActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .headerActions button {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .filters,
+  .indicators {
+    grid-template-columns: 1fr;
+  }
+}

@@ -106,3 +106,13 @@
   background: var(--green-dark);
   color: #fff;
 }
+
+@media (max-width: 560px) {
+  .root {
+    width: 100%;
+  }
+
+  .panel {
+    width: min(260px, calc(100vw - 24px));
+  }
+}

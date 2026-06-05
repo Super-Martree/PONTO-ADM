@@ -102,3 +102,17 @@
     opacity: 1;
   }
 }
+
+@media (max-width: 520px) {
+  .modal {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    padding: 18px;
+    text-align: center;
+  }
+
+  .closeButton {
+    top: 8px;
+    right: 8px;
+  }
+}

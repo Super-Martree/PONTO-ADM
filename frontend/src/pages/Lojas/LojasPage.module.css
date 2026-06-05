@@ -315,3 +315,34 @@
     min-width: 900px;
   }
 }
+
+@media (max-width: 620px) {
+  .pageHeader,
+  .pageActions,
+  .formActions,
+  .modalHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pageActions button,
+  .formActions button {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .bairroField {
+    grid-column: auto;
+  }
+
+  .modalOverlay {
+    align-items: flex-start;
+    padding: 12px;
+  }
+
+  .modalCard {
+    max-height: calc(100dvh - 24px);
+    overflow: auto;
+    padding: 14px;
+  }
+}

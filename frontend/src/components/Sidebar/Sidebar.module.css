@@ -274,3 +274,87 @@
   flex-shrink: 0;
 }
 .logoutBtn:hover { color: #ff7070; background: rgba(255,100,100,0.1); }
+
+@media (max-width: 760px) {
+  .sidebar,
+  .sidebar.collapsed {
+    width: 100%;
+    min-width: 100%;
+    height: auto;
+    max-height: 44vh;
+    overflow: visible;
+    border-right: 0;
+    border-bottom: 1px solid var(--sb-border);
+  }
+
+  .brand,
+  .collapsed .brand {
+    min-height: 46px;
+    justify-content: flex-start;
+    gap: 9px;
+    padding: 8px 10px;
+  }
+
+  .brandLogo,
+  .collapsed .brandLogo {
+    display: block;
+  }
+
+  .toggleBtn {
+    display: none;
+  }
+
+  .nav {
+    flex: 0 0 auto;
+    overflow-x: auto;
+    overflow-y: visible;
+    padding: 6px;
+  }
+
+  .nav > ul {
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+    min-width: max-content;
+  }
+
+  .sectionLabel {
+    display: none;
+  }
+
+  .item,
+  .groupHead {
+    border-radius: 6px;
+    padding: 8px 10px;
+  }
+
+  .itemActive::before,
+  .subItemActive::before {
+    display: none;
+  }
+
+  .group {
+    position: relative;
+  }
+
+  .submenu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 130;
+    min-width: 190px;
+    overflow: hidden;
+    border: 1px solid var(--sb-border);
+    border-radius: 8px;
+    background: var(--sb-bg);
+    box-shadow: 0 18px 42px rgba(3, 20, 12, 0.28);
+  }
+
+  .subItem {
+    padding: 9px 12px;
+  }
+
+  .footer {
+    display: none;
+  }
+}
