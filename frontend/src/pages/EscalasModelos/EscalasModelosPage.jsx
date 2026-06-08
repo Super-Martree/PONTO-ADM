@@ -107,6 +107,61 @@ function formatHours(value) {
   return Number.isInteger(number) ? String(number) : number.toFixed(1);
 }
 
+function formatHoursInput(value) {
+  const minutes = Math.round(Number(value || 0) * 60);
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+
+  return remainingMinutes ? `${hours},${String(remainingMinutes).padStart(2, '0')}` : String(hours);
+}
+
+function parseHoursInput(value) {
+  const text = String(value || '').trim();
+  if (!text) return 0;
+
+  const timeMatch = text.match(/^(\d{1,2})\s*[:,]\s*(\d{2})$/);
+  if (timeMatch) {
+    const hours = Number(timeMatch[1]);
+    const minutes = Number(timeMatch[2]);
+    if (minutes < 60) return hours + (minutes / 60);
+  }
+
+  const decimal = Number(text.replace(',', '.'));
+  return Number.isFinite(decimal) && decimal >= 0 ? decimal : 0;
+}
+
+function HoursInput({ className, value, onChange }) {
+  const [text, setText] = useState(formatHoursInput(value));
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    if (!focused) setText(formatHoursInput(value));
+  }, [focused, value]);
+
+  function handleChange(event) {
+    const nextText = event.target.value;
+    setText(nextText);
+    onChange(parseHoursInput(nextText));
+  }
+
+  function handleBlur() {
+    setFocused(false);
+    setText(formatHoursInput(parseHoursInput(text)));
+  }
+
+  return (
+    <input
+      className={className}
+      type="text"
+      inputMode="decimal"
+      value={text}
+      onChange={handleChange}
+      onFocus={() => setFocused(true)}
+      onBlur={handleBlur}
+    />
+  );
+}
+
 function Preview({ tipo, config }) {
   if (tipo === 'ciclo') {
     return (
@@ -283,14 +338,10 @@ function EscalaForm({ inicial, onSave, onCancel, saving }) {
             <span className={styles.totalPill}>{formatHours(totalHoras)}h por semana</span>
           </div>
           <div className={styles.fixedRow}>
-            <input
+            <HoursInput
               className={styles.hoursInput}
-              type="number"
-              min="0"
-              max="24"
-              step="0.5"
               value={config.horasPorDia}
-              onChange={(event) => setConfig((current) => ({ ...current, horasPorDia: Number(event.target.value) || 0 }))}
+              onChange={(value) => setConfig((current) => ({ ...current, horasPorDia: value }))}
             />
             <span>h / dia</span>
           </div>
@@ -385,13 +436,9 @@ function DayEditor({ label, value, onChange }) {
         </>
       ) : (
         <>
-          <input
-            type="number"
-            min="0"
-            max="24"
-            step="0.5"
+          <HoursInput
             value={value}
-            onChange={(event) => onChange(Number(event.target.value) || 0)}
+            onChange={onChange}
           />
           <button type="button" onClick={() => onChange(null)}>folga</button>
         </>
