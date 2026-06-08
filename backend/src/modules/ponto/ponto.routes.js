@@ -27,7 +27,7 @@ router.use(authenticate);
 
 router.post("/bater", async (req, res, next) => {
   try {
-    const result = await baterPonto(req.user);
+    const result = await baterPonto(req.user, req.body);
     res.status(201).json(result);
   } catch (error) {
     handleRouteError(error, res, next);

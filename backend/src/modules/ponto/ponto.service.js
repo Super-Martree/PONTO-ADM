@@ -3,6 +3,7 @@ const {
   getFuncionarioEscalaByMatricula,
   getTodayDate,
   insertPunch,
+  listActiveAllowedPunchLocations,
   listAdminApuracaoRange,
   listAdminMonthlyPunches,
   listAdminTodayApuracao,
@@ -12,6 +13,7 @@ const {
   listTodayPunches,
 } = require("./ponto.repository");
 const { listActiveAdjustmentsByRange } = require("../ajustarPonto/ajustarPonto.repository");
+const { getLocalizacaoConfig } = require("../configuracoes/configuracoes.repository");
 const { resolveEscalaExpectedMinutes } = require("../escalas/escalaRuntime");
 
 const TIPOS = ["entrada1", "saida1", "entrada2", "saida2"];
@@ -39,12 +41,116 @@ function normalizeMatricula(matricula) {
   return String(matricula || "").trim();
 }
 
-function buildResumo({ matricula, data, batidas }) {
+function normalizeLocation(payload = {}) {
+  const latitude = Number(payload.latitude);
+  const longitude = Number(payload.longitude);
+  const accuracyMeters = payload.accuracyMeters === null || payload.accuracyMeters === undefined
+    ? null
+    : Number(payload.accuracyMeters);
+  const capturedAt = payload.capturedAt ? new Date(payload.capturedAt) : new Date();
+
+  if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+    throw createHttpError(400, "Latitude da localizacao invalida.");
+  }
+
+  if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+    throw createHttpError(400, "Longitude da localizacao invalida.");
+  }
+
+  if (accuracyMeters !== null && (!Number.isFinite(accuracyMeters) || accuracyMeters < 0)) {
+    throw createHttpError(400, "Precisao da localizacao invalida.");
+  }
+
+  if (Number.isNaN(capturedAt.getTime())) {
+    throw createHttpError(400, "Data da localizacao invalida.");
+  }
+
+  return {
+    latitude,
+    longitude,
+    accuracyMeters,
+    capturedAt: capturedAt.toISOString(),
+  };
+}
+
+function degreesToRadians(value) {
+  return (value * Math.PI) / 180;
+}
+
+function calculateDistanceMeters(origin, target) {
+  const earthRadiusMeters = 6371000;
+  const deltaLat = degreesToRadians(target.latitude - origin.latitude);
+  const deltaLon = degreesToRadians(target.longitude - origin.longitude);
+  const originLat = degreesToRadians(origin.latitude);
+  const targetLat = degreesToRadians(target.latitude);
+  const haversine = Math.sin(deltaLat / 2) ** 2
+    + Math.cos(originLat) * Math.cos(targetLat) * Math.sin(deltaLon / 2) ** 2;
+
+  return 2 * earthRadiusMeters * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+}
+
+function findAllowedLocation(location, allowedLocations = []) {
+  let nearest = null;
+
+  for (const allowed of allowedLocations) {
+    const distanceMeters = calculateDistanceMeters(location, allowed);
+    const candidate = {
+      ...allowed,
+      distanceMeters,
+    };
+
+    if (!nearest || distanceMeters < nearest.distanceMeters) {
+      nearest = candidate;
+    }
+
+    if (distanceMeters <= Number(allowed.raioMetros || 0)) {
+      return {
+        allowed: true,
+        location: candidate,
+      };
+    }
+  }
+
+  return {
+    allowed: false,
+    location: nearest,
+  };
+}
+
+async function resolvePunchLocation(payload = {}) {
+  const { validacaoLocalizacaoAtiva } = await getLocalizacaoConfig();
+
+  if (!validacaoLocalizacaoAtiva) {
+    return payload?.location ? normalizeLocation(payload.location) : null;
+  }
+
+  const location = normalizeLocation(payload?.location);
+  const allowedLocations = await listActiveAllowedPunchLocations();
+
+  if (!allowedLocations.length) {
+    return null;
+  }
+
+  const result = findAllowedLocation(location, allowedLocations);
+
+  if (result.allowed) {
+    return location;
+  }
+
+  const nearest = result.location;
+  const distanceText = nearest ? `${Math.round(nearest.distanceMeters)}m` : "fora da area permitida";
+  const localText = nearest ? ` Local mais proximo: ${nearest.nome} (${distanceText}).` : "";
+  throw createHttpError(403, `Voce esta fora dos locais permitidos para bater ponto.${localText}`);
+}
+
+function buildResumo({ matricula, data, batidas, esperadoMinutos = 8 * 60 }) {
   const resumo = {
     entrada1: null,
     saida1: null,
     entrada2: null,
     saida2: null,
+    esperadoMinutos,
+    esperado: formatMinutes(esperadoMinutos),
     totalBatidas: batidas.length,
     limiteAtingido: batidas.length >= TIPOS.length,
     proximaBatida: TIPOS[batidas.length] || null,
@@ -57,7 +163,21 @@ function buildResumo({ matricula, data, batidas }) {
   return {
     matricula,
     data,
-    batidas: batidas.map(({ tipo, hora_ponto }) => ({ tipo, hora_ponto })),
+    batidas: batidas.map(({
+      tipo,
+      hora_ponto,
+      latitude,
+      longitude,
+      accuracy_meters,
+      location_captured_at,
+    }) => ({
+      tipo,
+      hora_ponto,
+      latitude,
+      longitude,
+      accuracy_meters,
+      location_captured_at,
+    })),
     resumo,
   };
 }
@@ -593,8 +713,11 @@ async function getTodayStatus(user) {
     getTodayDate(),
     listTodayPunches(cleanMatricula, dataInicioPonto),
   ]);
+  const escalaInfo = buildEscalaInfo(escalaRows);
+  const feriadosRows = await listFeriadosByRange({ startDate: data, endDate: data });
+  const esperadoMinutos = feriadosRows.length > 0 ? 0 : resolveEscalaExpectedMinutes(escalaInfo, data);
 
-  return buildResumo({ matricula: cleanMatricula, data, batidas });
+  return buildResumo({ matricula: cleanMatricula, data, batidas, esperadoMinutos });
 }
 
 async function getRegistrosPeriodo(user, query) {
@@ -648,12 +771,13 @@ async function getRegistrosPeriodo(user, query) {
   };
 }
 
-async function baterPonto(user) {
+async function baterPonto(user, payload = {}) {
   if (user?.role === "admin") {
     throw createHttpError(403, "Administrador não registra ponto.");
   }
 
   const cleanMatricula = getAuthenticatedMatricula(user);
+  const location = await resolvePunchLocation(payload);
   const escalaRows = await getFuncionarioEscalaByMatricula(cleanMatricula);
   const dataInicioPonto = escalaRows[0]?.dataInicioPonto || null;
 
@@ -670,7 +794,7 @@ async function baterPonto(user) {
   }
 
   const tipo = TIPOS[todayPunches.length];
-  const registro = await insertPunch({ matricula: cleanMatricula, tipo });
+  const registro = await insertPunch({ matricula: cleanMatricula, tipo, location });
   const proximaBatida = TIPOS[todayPunches.length + 1] || null;
 
   return {
@@ -681,6 +805,10 @@ async function baterPonto(user) {
       data_ponto: registro.data_ponto,
       hora_ponto: registro.hora_ponto,
       tipo: registro.tipo,
+      latitude: registro.latitude,
+      longitude: registro.longitude,
+      accuracy_meters: registro.accuracy_meters,
+      location_captured_at: registro.location_captured_at,
     },
     proximaBatida,
   };

@@ -3,6 +3,7 @@ const cors = require("cors");
 const env = require("./config/env");
 const { getPool } = require("./db/postgres");
 const authRoutes = require("./modules/auth/auth.routes");
+const configuracoesRoutes = require("./modules/configuracoes/configuracoes.routes");
 const escalasRoutes = require("./modules/escalas/escalas.routes");
 const feriadosRoutes = require("./modules/feriados/feriados.routes");
 const funcionariosRoutes = require("./modules/funcionarios/funcionarios.routes");
@@ -48,6 +49,7 @@ app.get("/api/health/db", async (req, res, next) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/configuracoes", configuracoesRoutes);
 app.use("/api/escalas", escalasRoutes);
 app.use("/api/feriados", feriadosRoutes);
 app.use("/api/funcionarios", funcionariosRoutes);

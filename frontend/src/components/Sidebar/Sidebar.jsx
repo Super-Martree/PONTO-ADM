@@ -12,6 +12,7 @@ import {
   LogOut,
   ClipboardList,
   BarChart2,
+  Settings,
 } from 'lucide-react';
 import SidebarItem from './SidebarItem';
 import SidebarGroup from './SidebarGroup';
@@ -62,6 +63,7 @@ const MENU = [
       { id: 'tratativas-historico', label: 'Historico', icon: <FileText size={13} /> },
     ],
   },
+  { id: 'configuracoes', label: 'Configuracoes', icon: <Settings size={15} />, section: null },
   { id: 'relatorios', label: 'Relatorios', icon: <FileText size={15} />, section: null },
 ];
 

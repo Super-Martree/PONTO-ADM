@@ -10,6 +10,7 @@ installApiMonitor();
 const Login = lazy(() => import('./pages/Login'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Apuracao = lazy(() => import('./pages/Apuracao'));
+const ConfiguracoesPage = lazy(() => import('./pages/Configuracoes'));
 const EscalasModelosPage = lazy(() => import('./pages/EscalasModelos'));
 const EscalasFuncionariosPage = lazy(() => import('./pages/EscalasFuncionarios'));
 const FeriadosPage = lazy(() => import('./pages/Feriados'));
@@ -61,6 +62,8 @@ function renderPage(page, props = {}) {
       return <PontoDoMesPage />;
     case 'relatorios':
       return <Relatorios />;
+    case 'configuracoes':
+      return <ConfiguracoesPage />;
     case 'funcionarios':
       return <Funcionarios />;
     case 'escalas':

@@ -1,6 +1,6 @@
 import { apiFetch } from '../../utils/api';
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, CalendarDays, Clock, ClipboardList, Download, Filter, Hourglass, LogOut } from 'lucide-react';
+import { AlertTriangle, CalendarDays, Clock, ClipboardList, Download, Filter, Hourglass, LogOut, MapPin } from 'lucide-react';
 import PontoDoMesPage from '../PontoDoMes/PontoDoMesPage';
 import RecordsTable from './components/RecordsTable';
 import { parseDateBrInput, todayBrDateInput } from '../../utils/date';
@@ -52,8 +52,10 @@ export default function Ponto({ user, onLogout }) {
   const [now, setNow] = useState(() => new Date());
   const ringRef = useRef(null);
   const [status, setStatus] = useState(null);
+  const [validacaoLocalizacaoAtiva, setValidacaoLocalizacaoAtiva] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [acquiringLocation, setAcquiringLocation] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [periodo, setPeriodo] = useState('geral');
   const [customStart, setCustomStart] = useState(todayBrDateInput);
@@ -63,7 +65,9 @@ export default function Ponto({ user, onLogout }) {
   const [registrosError, setRegistrosError] = useState('');
   const latestRecord = status?.batidas?.[status.batidas.length - 1];
   const workedMinutes = calculateWorkedMinutes(status?.resumo);
-  const dailyGoalMinutes = 8 * 60;
+  const dailyGoalMinutes = Number.isFinite(Number(status?.resumo?.esperadoMinutos))
+    ? Number(status.resumo.esperadoMinutos)
+    : 8 * 60;
   const balanceMinutes = workedMinutes - dailyGoalMinutes;
 
   useEffect(() => {
@@ -125,6 +129,7 @@ export default function Ponto({ user, onLogout }) {
 
   useEffect(() => {
     loadTodayStatus();
+    loadLocalizacaoConfig();
   }, [user?.matricula]);
 
   useEffect(() => {
@@ -181,6 +186,19 @@ export default function Ponto({ user, onLogout }) {
     }
   }
 
+  async function loadLocalizacaoConfig() {
+    try {
+      const response = await apiFetch('/api/configuracoes/localizacao', {
+        cache: 'no-store',
+        credentials: 'include',
+      });
+      const data = await readResponse(response);
+      setValidacaoLocalizacaoAtiva(Boolean(data.configuracao?.validacaoLocalizacaoAtiva));
+    } catch {
+      setValidacaoLocalizacaoAtiva(false);
+    }
+  }
+
   async function loadRegistros() {
     const params = new URLSearchParams({ periodo });
 
@@ -206,17 +224,46 @@ export default function Ponto({ user, onLogout }) {
     }
   }
 
+  function getCurrentLocation() {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error('Este navegador nao permite capturar localizacao.'));
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          resolve({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracyMeters: position.coords.accuracy,
+            capturedAt: new Date(position.timestamp).toISOString(),
+          });
+        },
+        () => reject(new Error('Autorize a localizacao para registrar o ponto.')),
+        {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 15000,
+        },
+      );
+    });
+  }
+
   async function registerPoint(event) {
     event.preventDefault();
     setFeedback(null);
 
+    setAcquiringLocation(validacaoLocalizacaoAtiva);
     setSaving(true);
 
     try {
+      const location = validacaoLocalizacaoAtiva ? await getCurrentLocation() : null;
       const response = await apiFetch('/api/ponto/bater', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
+        body: JSON.stringify(location ? { location } : {}),
       });
       const data = await readResponse(response);
       setFeedback({ type: 'success', message: data.message });
@@ -227,6 +274,7 @@ export default function Ponto({ user, onLogout }) {
     } catch (error) {
       setFeedback({ type: 'error', message: error.message });
     } finally {
+      setAcquiringLocation(false);
       setSaving(false);
     }
   }
@@ -346,8 +394,8 @@ export default function Ponto({ user, onLogout }) {
 
             <form className={styles.punchForm} onSubmit={registerPoint}>
               <button className={styles.action} type="submit" disabled={saving || loadingStatus || limiteAtingido}>
-                <Clock size={18} />
-                {saving ? 'Registrando...' : limiteAtingido ? 'Limite diário atingido' : 'Registrar ponto'}
+                {acquiringLocation ? <MapPin size={18} /> : <Clock size={18} />}
+                {acquiringLocation && validacaoLocalizacaoAtiva ? 'Capturando localizacao...' : saving ? 'Registrando...' : limiteAtingido ? 'Limite diário atingido' : 'Registrar ponto'}
               </button>
             </form>
 

@@ -1,5 +1,5 @@
 const { getPool, sql } = require("../../db/postgres");
-const { ensureEscalasConfigColumn } = require("../../db/schema");
+const { ensureEscalasConfigColumn, ensureLocaisPermitidosSchema, ensurePontoLocationColumns } = require("../../db/schema");
 const env = require("../../config/env");
 const { sqlIdentifier } = require("../../utils/identifier");
 
@@ -15,6 +15,10 @@ function mapRegistro(row) {
     hora_ponto: row.hora_ponto,
     tipo: row.tipo,
     data_hora: row.data_hora,
+    latitude: row.latitude === null || row.latitude === undefined ? null : Number(row.latitude),
+    longitude: row.longitude === null || row.longitude === undefined ? null : Number(row.longitude),
+    accuracy_meters: row.accuracy_meters === null || row.accuracy_meters === undefined ? null : Number(row.accuracy_meters),
+    location_captured_at: row.location_captured_at || null,
   };
 }
 
@@ -58,6 +62,7 @@ async function findLastPunch(matricula, startDate = null) {
 }
 
 async function listTodayPunches(matricula, startDate = null) {
+  await ensurePontoLocationColumns();
   const pool = await getPool();
   const result = await pool.request()
     .input("matricula", sql.VarChar(20), matricula)
@@ -69,7 +74,11 @@ async function listTodayPunches(matricula, startDate = null) {
         to_char(data_ponto, 'YYYY-MM-DD') AS data_ponto,
         to_char(hora_ponto, 'HH24:MI') AS hora_ponto,
         to_char(data_hora, 'YYYY-MM-DD HH24:MI:SS') AS data_hora,
-        tipo
+        tipo,
+        latitude,
+        longitude,
+        accuracy_meters,
+        to_char(location_captured_at, 'YYYY-MM-DD HH24:MI:SS') AS location_captured_at
       FROM app_ponto_registros
       WHERE matricula = @matricula
         AND data_ponto = (now() AT TIME ZONE '${APP_TIME_ZONE}')::date
@@ -148,19 +157,62 @@ async function getFuncionarioEscalaByMatricula(matricula) {
   return result.recordset;
 }
 
-async function insertPunch({ matricula, tipo }) {
+async function listActiveAllowedPunchLocations() {
+  await ensureLocaisPermitidosSchema();
+  const pool = await getPool();
+  const result = await pool.request().query(`
+    SELECT
+      id,
+      nome,
+      latitude,
+      longitude,
+      raio_metros AS "raioMetros"
+    FROM app_ponto_locais_permitidos
+    WHERE ativo = true
+    ORDER BY nome ASC, id ASC
+  `);
+
+  return result.recordset.map((row) => ({
+    id: row.id,
+    nome: row.nome,
+    latitude: Number(row.latitude),
+    longitude: Number(row.longitude),
+    raioMetros: Number(row.raioMetros || 0),
+  }));
+}
+
+async function insertPunch({ matricula, tipo, location }) {
+  await ensurePontoLocationColumns();
   const pool = await getPool();
   const result = await pool.request()
     .input("matricula", sql.VarChar(20), matricula)
     .input("tipo", sql.VarChar(20), tipo)
+    .input("latitude", sql.VarChar(30), location?.latitude ?? null)
+    .input("longitude", sql.VarChar(30), location?.longitude ?? null)
+    .input("accuracyMeters", sql.VarChar(30), location?.accuracyMeters ?? null)
+    .input("capturedAt", sql.VarChar(30), location?.capturedAt ?? null)
     .query(`
-      INSERT INTO app_ponto_registros (matricula, data_ponto, hora_ponto, data_hora, tipo)
+      INSERT INTO app_ponto_registros (
+        matricula,
+        data_ponto,
+        hora_ponto,
+        data_hora,
+        tipo,
+        latitude,
+        longitude,
+        accuracy_meters,
+        location_captured_at
+      )
       VALUES (
         @matricula,
         (now() AT TIME ZONE '${APP_TIME_ZONE}')::date,
         (now() AT TIME ZONE '${APP_TIME_ZONE}')::time(0),
         (now() AT TIME ZONE '${APP_TIME_ZONE}')::timestamp(0),
-        @tipo
+        @tipo,
+        @latitude,
+        @longitude,
+        @accuracyMeters,
+        COALESCE((@capturedAt::timestamptz AT TIME ZONE '${APP_TIME_ZONE}')::timestamp(0), (now() AT TIME ZONE '${APP_TIME_ZONE}')::timestamp(0))
       )
       RETURNING
         id,
@@ -168,7 +220,11 @@ async function insertPunch({ matricula, tipo }) {
         to_char(data_ponto, 'YYYY-MM-DD') AS data_ponto,
         to_char(hora_ponto, 'HH24:MI') AS hora_ponto,
         to_char(data_hora, 'YYYY-MM-DD HH24:MI:SS') AS data_hora,
-        tipo
+        tipo,
+        latitude,
+        longitude,
+        accuracy_meters,
+        to_char(location_captured_at, 'YYYY-MM-DD HH24:MI:SS') AS location_captured_at
     `);
 
   return mapRegistro(result.recordset[0]);
@@ -373,6 +429,7 @@ module.exports = {
   getTodayDate,
   insertPunch,
   isFeriado,
+  listActiveAllowedPunchLocations,
   listAdminApuracaoRange,
   listAdminTodayApuracao,
   listFeriadosByRange,
