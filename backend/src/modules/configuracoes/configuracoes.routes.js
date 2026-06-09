@@ -2,12 +2,10 @@ const express = require("express");
 const authenticate = require("../../middlewares/authenticate");
 const {
   atualizarLocalPermitido,
+  buscarConfiguracaoLocalizacao,
   criarLocalPermitido,
   excluirLocalPermitido,
   listarLocaisPermitidos,
-} = require("../lojas/lojas.service");
-const {
-  buscarConfiguracaoLocalizacao,
   salvarConfiguracaoLocalizacao,
 } = require("./configuracoes.service");
 
