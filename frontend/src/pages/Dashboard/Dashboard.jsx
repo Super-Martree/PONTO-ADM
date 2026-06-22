@@ -6,7 +6,6 @@ import {
   ClipboardList,
   UserCheck,
   Users,
-  Zap,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import styles from './Dashboard.module.css';
@@ -98,7 +97,20 @@ function getWeekLabel(dateText) {
   return `S${Math.ceil(day / 7)}`;
 }
 
+function todayIso() {
+  const date = new Date();
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+}
+
+function isClosedPendingDay(row, today = todayIso()) {
+  return Boolean(row?.data)
+    && row.data < today
+    && ['falta', 'incompleto', 'feriado trabalhado'].includes(String(row.status || '').toLowerCase());
+}
+
 function buildMonthlyTrends(rows = []) {
+  const today = todayIso();
   const map = new Map(['S1', 'S2', 'S3', 'S4', 'S5'].map((week) => [week, {
     semana: week,
     horasExtras: 0,
@@ -120,7 +132,7 @@ function buildMonthlyTrends(rows = []) {
       bucket.faltas += 1;
     }
 
-    if (status === 'incompleto' || status === 'em andamento' || status === 'falta') {
+    if (isClosedPendingDay(row, today)) {
       bucket.pendencias += 1;
     }
   }
@@ -716,16 +728,6 @@ export default function Dashboard({ onNavigate }) {
       icon: AlertCircle,
       tone: 'red',
       spark: [1, 3, 2, 4, 2, resumo.pendencias || 0],
-    },
-    {
-      label: 'Extras do mes',
-      value: Math.round(derived.monthlyTrends.reduce((total, item) => total + item.horasExtras, 0)),
-      total: null,
-      sub: 'horas positivas',
-      trend: '+ mes',
-      icon: Zap,
-      tone: 'green',
-      spark: derived.monthlyTrends.map((item) => item.horasExtras),
     },
   ];
   const chartHeight = Math.min(460, Math.max(220, 70 + (derived.lojas.length * 36)));

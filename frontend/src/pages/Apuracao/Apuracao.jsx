@@ -21,6 +21,18 @@ function getStatusClass(status) {
   return styles.statusPending;
 }
 
+function todayIso() {
+  const date = new Date();
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+}
+
+function isClosedPendingDay(row, today = todayIso()) {
+  return Boolean(row?.data)
+    && row.data < today
+    && ['Falta', 'Incompleto', 'Feriado Trabalhado'].includes(row.status);
+}
+
 export default function Apuracao({ initialState = {} }) {
   const [apuracao, setApuracao] = useState(null);
   const [periodo, setPeriodo] = useState('geral');
@@ -145,6 +157,7 @@ export default function Apuracao({ initialState = {} }) {
     });
   }, [filters, funcionarios, selectedMatricula]);
   const filteredResumo = useMemo(() => {
+    const today = todayIso();
     const funcionariosComRegistro = new Set(
       filteredFuncionarios
         .filter((item) => Number(item.totalBatidas || 0) > 0)
@@ -152,11 +165,7 @@ export default function Apuracao({ initialState = {} }) {
         .filter(Boolean)
     );
     const incompletos = filteredFuncionarios.filter((item) => item.status === 'Incompleto').length;
-    const pendencias = filteredFuncionarios.filter((item) => (
-      item.status === 'Falta'
-      || item.status === 'Em andamento'
-      || item.status === 'Fora da escala'
-    )).length;
+    const pendencias = filteredFuncionarios.filter((item) => isClosedPendingDay(item, today)).length;
 
     return {
       funcionarios: funcionariosComRegistro.size,

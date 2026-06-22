@@ -12,7 +12,7 @@ npm.cmd start
 App local:
 
 ```text
-http://localhost:3000
+http://localhost:3002
 ```
 
 Tambem pode subir frontend e backend juntos pela raiz:

@@ -59,6 +59,7 @@ const MENU = [
     section: 'Gestao',
     children: [
       { id: 'tratativas-ajustar-ponto', label: 'Ajustar Ponto', icon: <CalendarDays size={13} /> },
+      { id: 'banco-horas', label: 'Banco de Horas', icon: <Clock size={13} /> },
       { id: 'tratativas-pendentes', label: 'Pendentes', icon: <ClipboardList size={13} /> },
       { id: 'tratativas-historico', label: 'Historico', icon: <FileText size={13} /> },
     ],

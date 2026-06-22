@@ -3,6 +3,7 @@ const {
   getFuncionarioEscalaByMatricula,
   getTodayDate,
   insertPunch,
+  listEscalasSemanaisByRange,
   listActiveAllowedPunchLocations,
   listAdminApuracaoRange,
   listAdminMonthlyPunches,
@@ -396,6 +397,12 @@ function getLocalDateOnly() {
   }).format(new Date());
 }
 
+const PENDING_PROBLEM_STATUSES = new Set(["Falta", "Incompleto", "Feriado Trabalhado"]);
+
+function isClosedPendingDay(dia, today = getLocalDateOnly()) {
+  return Boolean(dia?.data) && dia.data < today && PENDING_PROBLEM_STATUSES.has(dia.status);
+}
+
 function buildEscalaInfo(rows = []) {
   const first = rows[0] || {};
   const dias = new Map();
@@ -414,6 +421,67 @@ function buildEscalaInfo(rows = []) {
     dataInicio: first.escalaDataInicio || first.dataInicioPonto || null,
     dataInicioPonto: first.dataInicioPonto || null,
     dias,
+  };
+}
+
+function buildEscalasSemanaisMap(rows = []) {
+  const overrides = new Map();
+
+  for (const row of rows) {
+    const key = String(row.matricula || "");
+    if (!key) continue;
+
+    if (!overrides.has(key)) {
+      overrides.set(key, new Map());
+    }
+
+    const byWeek = overrides.get(key);
+    const weekKey = `${row.semanaInicio}|${row.semanalId}`;
+    if (!byWeek.has(weekKey)) {
+      byWeek.set(weekKey, {
+        semanalId: row.semanalId,
+        semanaInicio: row.semanaInicio,
+        semanaFim: row.semanaFim,
+        escalaNome: row.escalaNome || "Sem escala",
+        tipo: row.escalaTipo || "fixa",
+        configuracao: row.escalaConfiguracao || null,
+        dataInicio: row.semanaInicio,
+        dias: new Map(),
+      });
+    }
+
+    if (row.diaSemana) {
+      byWeek.get(weekKey).dias.set(Number(row.diaSemana), Number(row.metaMinutos || 0));
+    }
+  }
+
+  return new Map([...overrides.entries()].map(([matricula, byWeek]) => [
+    matricula,
+    [...byWeek.values()].sort((a, b) => a.semanaInicio.localeCompare(b.semanaInicio) || a.semanalId - b.semanalId),
+  ]));
+}
+
+function findEscalaSemanal(overrides = [], data) {
+  return [...overrides].reverse().find((override) => (
+    override.semanaInicio <= data && override.semanaFim >= data
+  )) || null;
+}
+
+function applyEscalaSemanal(escalaInfo, weeklyOverrides, data) {
+  const semanal = findEscalaSemanal(weeklyOverrides, data);
+
+  if (!semanal) return escalaInfo;
+
+  return {
+    ...escalaInfo,
+    escalaNome: semanal.escalaNome,
+    tipo: semanal.tipo,
+    configuracao: semanal.configuracao,
+    dataInicio: semanal.semanaInicio,
+    dias: semanal.dias,
+    escalaSemanal: true,
+    semanaInicio: semanal.semanaInicio,
+    semanaFim: semanal.semanaFim,
   };
 }
 
@@ -546,11 +614,14 @@ function applyMonthlyAdjustment(row, adjustment) {
     entrada2: adjustment.entrada2 || null,
     saida2: adjustment.saida2 || null,
   };
+  const totalBatidas = Object.values(values).filter(Boolean).length;
 
   return {
     ...row,
     ...values,
-    totalBatidas: Object.values(values).filter(Boolean).length,
+    totalBatidas,
+    limiteAtingido: totalBatidas >= TIPOS.length,
+    proximaBatida: TIPOS[totalBatidas] || null,
     ajustado: true,
     tipoAjuste: adjustment.tipoAjuste,
     metaMinutosOverride: adjustment.metaMinutosOverride || null,
@@ -665,6 +736,7 @@ function suppressInProgressMonthlyBalance(row) {
 }
 
 function summarizePontoDias(dias = []) {
+  const today = getLocalDateOnly();
   const diasValidos = dias.filter((dia) => dia.status);
   const saldoMinutos = diasValidos.reduce((total, dia) => (
     dia.saldoMinutos === null ? total : total + Number(dia.saldoMinutos || 0)
@@ -673,12 +745,7 @@ function summarizePontoDias(dias = []) {
   const trabalhados = diasValidos.filter((dia) => Number(dia.trabalhadoMinutos || 0) > 0).length;
   const faltas = diasValidos.filter((dia) => dia.status === "Falta").length;
   const incompletos = diasValidos.filter((dia) => dia.status === "Incompleto").length;
-  const pendentes = diasValidos.filter((dia) => (
-    dia.status === "Falta"
-    || dia.status === "Incompleto"
-    || dia.status === "Em andamento"
-    || dia.status === "Fora da escala"
-  )).length;
+  const pendentes = diasValidos.filter((dia) => isClosedPendingDay(dia, today)).length;
   const ajustados = diasValidos.filter((dia) => dia.ajustado).length;
 
   return {
@@ -713,8 +780,15 @@ async function getTodayStatus(user) {
     getTodayDate(),
     listTodayPunches(cleanMatricula, dataInicioPonto),
   ]);
-  const escalaInfo = buildEscalaInfo(escalaRows);
-  const feriadosRows = await listFeriadosByRange({ startDate: data, endDate: data });
+  const [feriadosRows, semanaisRows] = await Promise.all([
+    listFeriadosByRange({ startDate: data, endDate: data }),
+    listEscalasSemanaisByRange({ matricula: cleanMatricula, startDate: data, endDate: data }),
+  ]);
+  const escalaInfo = applyEscalaSemanal(
+    buildEscalaInfo(escalaRows),
+    buildEscalasSemanaisMap(semanaisRows).get(cleanMatricula) || [],
+    data
+  );
   const esperadoMinutos = feriadosRows.length > 0 ? 0 : resolveEscalaExpectedMinutes(escalaInfo, data);
 
   return buildResumo({ matricula: cleanMatricula, data, batidas, esperadoMinutos });
@@ -726,7 +800,7 @@ async function getRegistrosPeriodo(user, query) {
   const employeeRows = await getFuncionarioEscalaByMatricula(cleanMatricula);
   const dataInicioPonto = employeeRows[0]?.dataInicioPonto || null;
   const startDate = maxDateOnly(range.startDate, dataInicioPonto);
-  const [batidas, feriadosRows] = await Promise.all([
+  const [batidas, feriadosRows, semanaisRows, ajustesMap] = await Promise.all([
     listPunchesByRange({
       matricula: cleanMatricula,
       startDate,
@@ -736,11 +810,25 @@ async function getRegistrosPeriodo(user, query) {
       startDate,
       endDate: range.endDate,
     }),
+    listEscalasSemanaisByRange({
+      matricula: cleanMatricula,
+      startDate,
+      endDate: range.endDate,
+    }),
+    listActiveAdjustmentsByRange({
+      matricula: cleanMatricula,
+      startDate,
+      endDate: range.endDate,
+    }),
   ]);
   const escalaInfo = buildEscalaInfo(employeeRows);
+  const weeklyOverrides = buildEscalasSemanaisMap(semanaisRows).get(cleanMatricula) || [];
   const feriadosMap = buildFeriadosMap(feriadosRows);
   const grouped = groupPunchesByDate({ matricula: cleanMatricula, batidas });
   const groupedByDate = new Map(grouped.map((row) => [row.data, row]));
+  const adjustedDates = [...ajustesMap.keys()]
+    .map((key) => String(key).split("|")[1])
+    .filter(Boolean);
   const shouldGenerateCalendar = range.periodo !== "geral";
   const dias = shouldGenerateCalendar
     ? listDates(startDate, range.endDate).map((data) => groupedByDate.get(data) || {
@@ -754,10 +842,31 @@ async function getRegistrosPeriodo(user, query) {
       limiteAtingido: false,
       proximaBatida: TIPOS[0],
     })
-    : grouped;
+    : [...new Set([...groupedByDate.keys(), ...adjustedDates])]
+      .map((data) => groupedByDate.get(data) || {
+        matricula: cleanMatricula,
+        data,
+        entrada1: null,
+        saida1: null,
+        entrada2: null,
+        saida2: null,
+        totalBatidas: 0,
+        limiteAtingido: false,
+        proximaBatida: TIPOS[0],
+      });
 
   const diasComBatida = dias
-    .map((row) => enrichPontoRow(row, escalaInfo, feriadosMap))
+    .map((row) => {
+      const adjustment = ajustesMap.get(`${cleanMatricula}|${row.data}`);
+      const adjustedRow = applyMonthlyAdjustment(row, adjustment);
+      const enrichedRow = enrichPontoRow(
+        adjustedRow,
+        applyEscalaSemanal(escalaInfo, weeklyOverrides, row.data),
+        feriadosMap
+      );
+
+      return overrideMonthlyAdjustmentStatus(enrichedRow);
+    })
     .filter(hasPontoBatido)
     .sort((a, b) => b.data.localeCompare(a.data));
 
@@ -828,34 +937,38 @@ async function getAdminTodayApuracao(user, query = {}) {
     throw createHttpError(400, "Data de apuracao invalida.");
   }
 
-  const [rows, feriadosRows, ajustesMap] = await Promise.all([
+  const [rows, feriadosRows, ajustesMap, semanaisRows] = await Promise.all([
     listAdminTodayApuracao(requestedDate),
     listFeriadosByRange({ startDate: requestedDate, endDate: requestedDate }),
     listActiveAdjustmentsByRange({ matricula: "", startDate: requestedDate, endDate: requestedDate }),
+    listEscalasSemanaisByRange({ matricula: "", startDate: requestedDate, endDate: requestedDate }),
   ]);
   const feriadosMap = buildFeriadosMap(feriadosRows);
+  const semanaisMap = buildEscalasSemanaisMap(semanaisRows);
   const data = rows[0]?.data || requestedDate;
   const funcionarios = rows.map((row) => {
     const totalBatidas = Number(row.totalBatidas || 0);
+    const escalaInfo = applyEscalaSemanal({
+      tipo: row.escalaTipo || "fixa",
+      configuracao: row.escalaConfiguracao || null,
+      dataInicio: row.escalaDataInicio || row.dataInicioPonto || null,
+      dataInicioPonto: row.dataInicioPonto || null,
+      dias: new Map([[getDiaSemana(data), Number(row.esperadoMinutos || 0)]]),
+      escalaNome: row.escalaNome || "Sem escala",
+    }, semanaisMap.get(String(row.matricula)) || [], data);
 
     return {
       matricula: row.matricula,
       nome: row.nome || `Matricula ${row.matricula}`,
       loja: row.loja || "Sem loja",
-      escala: row.escalaNome || "Sem escala",
+      escala: escalaInfo.escalaNome || "Sem escala",
       data,
       entrada1: row.entrada1 || null,
       saida1: row.saida1 || null,
       entrada2: row.entrada2 || null,
       saida2: row.saida2 || null,
       totalBatidas,
-      esperadoMinutos: resolveEscalaExpectedMinutes({
-        tipo: row.escalaTipo || "fixa",
-        configuracao: row.escalaConfiguracao || null,
-        dataInicio: row.escalaDataInicio || row.dataInicioPonto || null,
-        dataInicioPonto: row.dataInicioPonto || null,
-        dias: new Map([[getDiaSemana(data), Number(row.esperadoMinutos || 0)]]),
-      }, data),
+      esperadoMinutos: resolveEscalaExpectedMinutes(escalaInfo, data),
     };
   }).map((row) => {
     const adjustment = ajustesMap.get(`${row.matricula}|${row.data}`);
@@ -869,9 +982,7 @@ async function getAdminTodayApuracao(user, query = {}) {
   const completos = funcionarios.filter((item) => (
     item.status === "Completo" || item.status === "Folga" || item.status === "Feriado" || item.status === "Feriado Trabalhado"
   )).length;
-  const pendencias = funcionarios.filter((item) => (
-    item.status === "Falta" || item.status === "Incompleto" || item.status === "Em andamento" || item.status === "Fora da escala"
-  )).length;
+  const pendencias = funcionarios.filter((item) => isClosedPendingDay(item)).length;
 
   return {
     data,
@@ -885,7 +996,7 @@ async function getAdminTodayApuracao(user, query = {}) {
   };
 }
 
-function groupMonthlyRows(rows, startDate, endDate, feriadosMap = new Map(), ajustesMap = new Map()) {
+function groupMonthlyRows(rows, startDate, endDate, feriadosMap = new Map(), ajustesMap = new Map(), semanaisMap = new Map()) {
   const funcionarios = new Map();
 
   for (const row of rows) {
@@ -953,14 +1064,14 @@ function groupMonthlyRows(rows, startDate, endDate, feriadosMap = new Map(), aju
     const getEscalaInfo = (data) => {
       const selected = [...historico].reverse().find((escala) => escala.dataInicio <= data);
 
-      return {
+      return applyEscalaSemanal({
         escalaNome: selected?.escalaNome || funcionario.escalaNome,
         tipo: selected?.tipo || funcionario.escalaTipo || "fixa",
         configuracao: selected?.configuracao || funcionario.escalaConfiguracao || null,
         dataInicio: selected?.dataInicio || funcionario.dataInicioPonto,
         dias: selected?.dias || funcionario.diasEscala,
         dataInicioPonto: funcionario.dataInicioPonto,
-      };
+      }, semanaisMap.get(String(funcionario.matricula)) || [], data);
     };
     const dias = listDates(startDate, endDate)
       .map((data) => {
@@ -994,7 +1105,7 @@ function groupMonthlyRows(rows, startDate, endDate, feriadosMap = new Map(), aju
   });
 }
 
-function groupApuracaoRows(rows, startDate, endDate, { calendar = false, feriadosMap = new Map(), ajustesMap = new Map() } = {}) {
+function groupApuracaoRows(rows, startDate, endDate, { calendar = false, feriadosMap = new Map(), ajustesMap = new Map(), semanaisMap = new Map() } = {}) {
   const funcionarios = new Map();
 
   for (const row of rows) {
@@ -1064,18 +1175,26 @@ function groupApuracaoRows(rows, startDate, endDate, { calendar = false, feriado
     const getEscalaInfo = (data) => {
       const selected = [...historico].reverse().find((escala) => escala.dataInicio <= data);
 
-      return {
+      return applyEscalaSemanal({
         escalaNome: selected?.escalaNome || funcionario.escalaNome,
         tipo: selected?.tipo || funcionario.escalaTipo || "fixa",
         configuracao: selected?.configuracao || funcionario.escalaConfiguracao || null,
         dataInicio: selected?.dataInicio || funcionario.dataInicioPonto,
         dias: selected?.dias || funcionario.diasEscala,
         dataInicioPonto: funcionario.dataInicioPonto,
-      };
+      }, semanaisMap.get(String(funcionario.matricula)) || [], data);
     };
     const effectiveStartDate = maxDateOnly(startDate, funcionario.dataInicioPonto);
-    const dates = (calendar ? listDates(effectiveStartDate, endDate) : [...funcionario.batidas.keys()].sort())
-      .filter((data) => funcionario.batidas.has(data));
+    const adjustedDates = [...ajustesMap.keys()]
+      .map((key) => {
+        const [matricula, data] = String(key).split("|");
+        return String(matricula) === String(funcionario.matricula) ? data : null;
+      })
+      .filter(Boolean);
+    const dates = (calendar
+      ? listDates(effectiveStartDate, endDate)
+      : [...new Set([...funcionario.batidas.keys(), ...adjustedDates])].sort())
+      .filter((data) => funcionario.batidas.has(data) || ajustesMap.has(`${funcionario.matricula}|${data}`));
 
     for (const data of dates) {
       const row = funcionario.batidas.get(data) || {
@@ -1129,13 +1248,15 @@ async function getAdminPontoDoMes(user, query = {}) {
 
   const startDate = `${ano}-${String(mes).padStart(2, "0")}-01`;
   const endDate = toDateOnly(new Date(Date.UTC(ano, mes, 0)));
-  const [rows, feriadosRows, ajustesMap] = await Promise.all([
+  const [rows, feriadosRows, ajustesMap, semanaisRows] = await Promise.all([
     listAdminMonthlyPunches({ matricula, startDate, endDate }),
     listFeriadosByRange({ startDate, endDate }),
     listActiveAdjustmentsByRange({ matricula, startDate, endDate }),
+    listEscalasSemanaisByRange({ matricula, startDate, endDate }),
   ]);
   const feriadosMap = buildFeriadosMap(feriadosRows);
-  const funcionarios = groupMonthlyRows(rows, startDate, endDate, feriadosMap, ajustesMap);
+  const semanaisMap = buildEscalasSemanaisMap(semanaisRows);
+  const funcionarios = groupMonthlyRows(rows, startDate, endDate, feriadosMap, ajustesMap, semanaisMap);
   const selected = funcionarios[0] || null;
   const dias = selected?.dias || [];
   const closedDias = dias.filter((dia) => dia.status);
@@ -1146,7 +1267,7 @@ async function getAdminPontoDoMes(user, query = {}) {
     folgas: closedDias.filter((dia) => dia.status === "Folga").length,
     feriados: closedDias.filter((dia) => dia.statusCodigo === "feriado").length,
     aTrabalhar: closedDias.filter((dia) => dia.status === "A trabalhar").length,
-    pendencias: closedDias.filter((dia) => dia.status === "Incompleto" || dia.status === "Em andamento").length,
+    pendencias: closedDias.filter((dia) => isClosedPendingDay(dia)).length,
     esperado: formatMinutes(closedDias.reduce((total, dia) => total + dia.esperadoMinutos, 0)),
     trabalhado: formatMinutes(closedDias.reduce((total, dia) => total + dia.trabalhadoMinutos, 0)),
     saldo: formatMinutes(closedDias.reduce((total, dia) => total + dia.saldoMinutos, 0), { signed: true }),
@@ -1187,12 +1308,14 @@ async function getAdminResumoFuncionarios(user, query = {}) {
 
   const startDate = `${ano}-${String(mes).padStart(2, "0")}-01`;
   const endDate = toDateOnly(new Date(Date.UTC(ano, mes, 0)));
-  const [rows, feriadosRows, ajustesMap] = await Promise.all([
+  const [rows, feriadosRows, ajustesMap, semanaisRows] = await Promise.all([
     listAdminMonthlyPunches({ matricula: "", startDate, endDate }),
     listFeriadosByRange({ startDate, endDate }),
     listActiveAdjustmentsByRange({ matricula: "", startDate, endDate }),
+    listEscalasSemanaisByRange({ matricula: "", startDate, endDate }),
   ]);
   const feriadosMap = buildFeriadosMap(feriadosRows);
+  const semanaisMap = buildEscalasSemanaisMap(semanaisRows);
   const historyRows = await listAdminMonthlyPunches({ matricula: "", startDate: "1900-01-01", endDate });
   const historyStartDate = historyRows.reduce((earliest, row) => {
     const candidates = [row.dataInicioPonto, row.data_ponto].filter(Boolean);
@@ -1205,15 +1328,16 @@ async function getAdminResumoFuncionarios(user, query = {}) {
 
     return earliest;
   }, startDate);
-  const [historyFeriadosRows, historyAjustesMap] = await Promise.all([
+  const [historyFeriadosRows, historyAjustesMap, historySemanaisRows] = await Promise.all([
     listFeriadosByRange({ startDate: historyStartDate, endDate }),
     listActiveAdjustmentsByRange({ matricula: "", startDate: historyStartDate, endDate }),
+    listEscalasSemanaisByRange({ matricula: "", startDate: historyStartDate, endDate }),
   ]);
   const historicoMap = new Map(
-    groupMonthlyRows(historyRows, historyStartDate, endDate, buildFeriadosMap(historyFeriadosRows), historyAjustesMap)
+    groupMonthlyRows(historyRows, historyStartDate, endDate, buildFeriadosMap(historyFeriadosRows), historyAjustesMap, buildEscalasSemanaisMap(historySemanaisRows))
       .map((funcionario) => [funcionario.matricula, summarizePontoDias(funcionario.dias)])
   );
-  const funcionarios = groupMonthlyRows(rows, startDate, endDate, feriadosMap, ajustesMap).map((funcionario) => {
+  const funcionarios = groupMonthlyRows(rows, startDate, endDate, feriadosMap, ajustesMap, semanaisMap).map((funcionario) => {
     const resumo = summarizePontoDias(funcionario.dias);
     const geral = historicoMap.get(funcionario.matricula) || summarizePontoDias([]);
 
@@ -1266,7 +1390,7 @@ async function getAdminApuracaoPeriodo(user, query = {}) {
   }
 
   const range = resolveAdminApuracaoRange(query);
-  const [rows, feriadosRows, ajustesMap] = await Promise.all([
+  const [rows, feriadosRows, ajustesMap, semanaisRows] = await Promise.all([
     listAdminApuracaoRange({
       startDate: range.startDate,
       endDate: range.endDate,
@@ -1280,20 +1404,25 @@ async function getAdminApuracaoPeriodo(user, query = {}) {
       startDate: range.startDate,
       endDate: range.endDate,
     }),
+    listEscalasSemanaisByRange({
+      matricula: "",
+      startDate: range.startDate,
+      endDate: range.endDate,
+    }),
   ]);
   const feriadosMap = buildFeriadosMap(feriadosRows);
+  const semanaisMap = buildEscalasSemanaisMap(semanaisRows);
   const funcionarios = groupApuracaoRows(rows, range.startDate, range.endDate, {
     calendar: range.calendar,
     feriadosMap,
     ajustesMap,
+    semanaisMap,
   });
   const comBatida = funcionarios.filter((item) => item.totalBatidas > 0).length;
   const completos = funcionarios.filter((item) => (
     item.status === "Completo" || item.status === "Folga" || item.status === "Feriado" || item.status === "Feriado Trabalhado"
   )).length;
-  const pendencias = funcionarios.filter((item) => (
-    item.status === "Falta" || item.status === "Incompleto" || item.status === "Em andamento"
-  )).length;
+  const pendencias = funcionarios.filter((item) => isClosedPendingDay(item)).length;
 
   return {
     data: range.startDate === range.endDate ? range.startDate : null,
@@ -1315,8 +1444,11 @@ async function getDashboardResumo(user) {
     throw createHttpError(403, "Acesso restrito ao administrador.");
   }
 
-  const [apuracao, ultimasBatidas] = await Promise.all([
+  const today = getLocalDateOnly();
+  const [ano, mes] = today.split("-").map(Number);
+  const [apuracao, resumoMensal, ultimasBatidas] = await Promise.all([
     getAdminTodayApuracao(user),
+    getAdminResumoFuncionarios(user, { ano, mes }),
     listLatestPunches(),
   ]);
   const registrosHoje = apuracao.funcionarios.reduce((total, item) => total + item.totalBatidas, 0);
@@ -1330,7 +1462,7 @@ async function getDashboardResumo(user) {
       funcionariosAtivos: funcionariosEscalados,
       presentesHoje: apuracao.resumo.comBatida,
       registrosHoje,
-      pendencias: apuracao.resumo.pendencias,
+      pendencias: resumoMensal.resumo.pendencias,
     },
     funcionarios: apuracao.funcionarios,
     ultimasBatidas: ultimasBatidas.map((item) => ({

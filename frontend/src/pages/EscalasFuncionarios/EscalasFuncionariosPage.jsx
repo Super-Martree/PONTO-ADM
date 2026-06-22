@@ -1,6 +1,7 @@
 import { apiFetch } from '../../utils/api';
 import {
   AlertTriangle,
+  CalendarDays,
   CheckCircle2,
   ChevronDown,
   ChevronLeft,
@@ -10,6 +11,7 @@ import {
   RotateCcw,
   Save,
   Search,
+  Trash2,
   Users,
   X,
 } from 'lucide-react';
@@ -34,6 +36,22 @@ function addDays(dateText, amount) {
   date.setDate(date.getDate() + amount);
   const offset = date.getTimezoneOffset() * 60000;
   return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+}
+
+function isoToday() {
+  const now = new Date();
+  const offset = now.getTimezoneOffset() * 60000;
+  return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+}
+
+function getWeekStart(dateText) {
+  const date = new Date(`${dateText}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return '';
+  const day = date.getDay();
+  const offset = day === 0 ? 6 : day - 1;
+  date.setDate(date.getDate() - offset);
+  const timezoneOffset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 10);
 }
 
 function EscalaTag({ escala }) {
@@ -69,6 +87,17 @@ export default function EscalasFuncionariosPage() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [undoingHistoryId, setUndoingHistoryId] = useState(null);
   const [selectedHistoryId, setSelectedHistoryId] = useState(null);
+  const [weeklyForm, setWeeklyForm] = useState({
+    funcionarioId: '',
+    escalaId: '',
+    semanaInicio: getWeekStart(isoToday()),
+    motivo: '',
+  });
+  const [weeklyRows, setWeeklyRows] = useState([]);
+  const [weeklyLoading, setWeeklyLoading] = useState(false);
+  const [weeklySaving, setWeeklySaving] = useState(false);
+  const [weeklyDeletingId, setWeeklyDeletingId] = useState(null);
+  const [activeTab, setActiveTab] = useState('geral');
   const [page, setPage] = useState(1);
 
   const loadData = useCallback(async () => {
@@ -120,6 +149,9 @@ export default function EscalasFuncionariosPage() {
   const selectedFuncionario = useMemo(() => (
     funcionarios.find((funcionario) => String(funcionario.id) === String(selectedFuncionarioId)) || null
   ), [funcionarios, selectedFuncionarioId]);
+  const weeklyFuncionario = useMemo(() => (
+    funcionarios.find((funcionario) => String(funcionario.id) === String(weeklyForm.funcionarioId)) || null
+  ), [funcionarios, weeklyForm.funcionarioId]);
   const employeeOptions = useMemo(() => {
     const term = normalizeText(employeeSearch);
 
@@ -171,6 +203,19 @@ export default function EscalasFuncionariosPage() {
 
   function updateStartDraft(funcionarioId, value) {
     setStartDrafts((current) => ({ ...current, [funcionarioId]: value }));
+  }
+
+  function normalizeStartDraft(funcionarioId) {
+    const parsed = parseDateBrInput(startDrafts[funcionarioId]);
+    if (!parsed) return;
+    setStartDrafts((current) => ({ ...current, [funcionarioId]: toBrDateInput(parsed) }));
+  }
+
+  function updateWeeklyForm(field, value) {
+    setWeeklyForm((current) => ({
+      ...current,
+      [field]: field === 'semanaInicio' ? getWeekStart(value) || value : value,
+    }));
   }
 
   function selectFuncionario(funcionarioId) {
@@ -313,6 +358,99 @@ export default function EscalasFuncionariosPage() {
     }
   }
 
+  const loadWeeklyRows = useCallback(async (funcionarioId) => {
+    if (!funcionarioId) {
+      setWeeklyRows([]);
+      return;
+    }
+
+    setWeeklyLoading(true);
+    try {
+      const response = await apiFetch(`/api/funcionarios/${funcionarioId}/escalas-semanais`, {
+        cache: 'no-store',
+        credentials: 'include',
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Nao foi possivel carregar escalas semanais.');
+      }
+
+      setWeeklyRows(data.escalas || []);
+    } catch (error) {
+      setFeedback({ type: 'error', message: error.message });
+      setWeeklyRows([]);
+    } finally {
+      setWeeklyLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadWeeklyRows(weeklyForm.funcionarioId);
+  }, [loadWeeklyRows, weeklyForm.funcionarioId]);
+
+  async function saveWeeklyScale(event) {
+    event.preventDefault();
+    setFeedback(null);
+
+    if (!weeklyForm.funcionarioId || !weeklyForm.escalaId || !weeklyForm.semanaInicio) {
+      setFeedback({ type: 'error', message: 'Informe funcionario, escala e semana.' });
+      return;
+    }
+
+    setWeeklySaving(true);
+    try {
+      const response = await apiFetch(`/api/funcionarios/${weeklyForm.funcionarioId}/escalas-semanais`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          escalaId: weeklyForm.escalaId,
+          semanaInicio: weeklyForm.semanaInicio,
+          motivo: weeklyForm.motivo,
+        }),
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Nao foi possivel salvar escala semanal.');
+      }
+
+      setWeeklyRows(data.escalas || []);
+      setWeeklyForm((current) => ({ ...current, motivo: '' }));
+      setFeedback({ type: 'success', message: data.message || 'Escala semanal salva com sucesso.' });
+    } catch (error) {
+      setFeedback({ type: 'error', message: error.message });
+    } finally {
+      setWeeklySaving(false);
+    }
+  }
+
+  async function deleteWeeklyScale(row) {
+    if (!weeklyForm.funcionarioId || !row.id) return;
+
+    setWeeklyDeletingId(row.id);
+    setFeedback(null);
+    try {
+      const response = await apiFetch(`/api/funcionarios/${weeklyForm.funcionarioId}/escalas-semanais/${row.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Nao foi possivel excluir escala semanal.');
+      }
+
+      setWeeklyRows(data.escalas || []);
+      setFeedback({ type: 'success', message: data.message || 'Escala semanal excluida com sucesso.' });
+    } catch (error) {
+      setFeedback({ type: 'error', message: error.message });
+    } finally {
+      setWeeklyDeletingId(null);
+    }
+  }
+
   return (
     <div className={styles.page}>
       <div className={styles.topbar}>
@@ -320,6 +458,7 @@ export default function EscalasFuncionariosPage() {
           <h2>Escala por Funcionario</h2>
           <p>Vincule escalas e datas de vigencia aos funcionarios.</p>
         </div>
+        {activeTab === 'geral' && (
         <div className={styles.topActions}>
           {pendingIds.length > 0 && (
             <span className={styles.pendingCounter}>{pendingIds.length} alteracao(oes) pendente(s)</span>
@@ -331,12 +470,36 @@ export default function EscalasFuncionariosPage() {
             <Save size={13} /> {savingAll ? 'Salvando...' : 'Salvar Todos'}
           </button>
         </div>
+        )}
       </div>
 
       {feedback && (
         <p className={feedback.type === 'success' ? styles.success : styles.error}>{feedback.message}</p>
       )}
 
+      <div className={styles.tabs} role="tablist" aria-label="Tipo de escala">
+        <button
+          type="button"
+          className={activeTab === 'geral' ? styles.tabActive : styles.tab}
+          onClick={() => setActiveTab('geral')}
+          role="tab"
+          aria-selected={activeTab === 'geral'}
+        >
+          Escala Geral
+        </button>
+        <button
+          type="button"
+          className={activeTab === 'semanal' ? styles.tabActive : styles.tab}
+          onClick={() => setActiveTab('semanal')}
+          role="tab"
+          aria-selected={activeTab === 'semanal'}
+        >
+          Escala Semanal
+        </button>
+      </div>
+
+      {activeTab === 'geral' && (
+      <>
       <div className={styles.summaryGrid}>
         <div className={styles.summaryCard}>
           <span className={styles.summaryIcon}><Users size={18} /></span>
@@ -511,8 +674,10 @@ export default function EscalasFuncionariosPage() {
                         type="text"
                         inputMode="numeric"
                         placeholder="dd/mm/aaaa"
+                        maxLength={10}
                         value={startDrafts[funcionario.id] || ''}
                         onChange={(event) => updateStartDraft(funcionario.id, event.target.value)}
+                        onBlur={() => normalizeStartDraft(funcionario.id)}
                       />
                     </td>
                     <td>
@@ -563,6 +728,93 @@ export default function EscalasFuncionariosPage() {
           </div>
         </div>
       </div>
+      </>
+      )}
+
+      {activeTab === 'semanal' && (
+      <section className={styles.weeklyCard}>
+        <div className={styles.weeklyHeader}>
+          <div>
+            <h3>Escala semanal</h3>
+            <p>Defina uma escala apenas para uma semana especifica. Ela substitui a escala fixa nesse periodo.</p>
+          </div>
+          <CalendarDays size={18} />
+        </div>
+
+        <form className={styles.weeklyForm} onSubmit={saveWeeklyScale}>
+          <label>
+            Funcionario
+            <select value={weeklyForm.funcionarioId} onChange={(event) => updateWeeklyForm('funcionarioId', event.target.value)} required>
+              <option value="">Selecione</option>
+              {funcionarios.map((funcionario) => (
+                <option key={funcionario.id} value={funcionario.id}>{funcionario.nome} - {funcionario.matricula}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Semana
+            <input type="date" value={weeklyForm.semanaInicio} onChange={(event) => updateWeeklyForm('semanaInicio', event.target.value)} required />
+          </label>
+          <label>
+            Escala da semana
+            <select value={weeklyForm.escalaId} onChange={(event) => updateWeeklyForm('escalaId', event.target.value)} required>
+              <option value="">Selecione</option>
+              {escalasAtivas.map((escala) => (
+                <option key={escala.id} value={escala.id}>{escala.nome}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Motivo
+            <input value={weeklyForm.motivo} onChange={(event) => updateWeeklyForm('motivo', event.target.value)} placeholder="Opcional" maxLength={255} />
+          </label>
+          <button className={styles.btnPrimary} type="submit" disabled={weeklySaving}>
+            <Save size={13} /> {weeklySaving ? 'Salvando...' : 'Salvar semana'}
+          </button>
+        </form>
+
+        <div className={styles.weeklyList}>
+          <div className={styles.weeklyListHeader}>
+            <strong>{weeklyFuncionario ? weeklyFuncionario.nome : 'Selecione um funcionario'}</strong>
+            {weeklyFuncionario?.matricula && <span>#{weeklyFuncionario.matricula}</span>}
+          </div>
+          {weeklyLoading && <div className={styles.weeklyEmpty}>Carregando escalas semanais...</div>}
+          {!weeklyLoading && weeklyRows.length === 0 && <div className={styles.weeklyEmpty}>Nenhuma escala semanal cadastrada.</div>}
+          {!weeklyLoading && weeklyRows.length > 0 && (
+            <table className={styles.weeklyTable}>
+              <thead>
+                <tr>
+                  <th>Semana</th>
+                  <th>Escala</th>
+                  <th>Motivo</th>
+                  <th>Acoes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {weeklyRows.map((row) => (
+                  <tr key={row.id}>
+                    <td>{formatDateBr(row.semanaInicio)} a {formatDateBr(row.semanaFim)}</td>
+                    <td>{row.escalaNome}</td>
+                    <td>{row.motivo || '-'}</td>
+                    <td>
+                      <button
+                        className={styles.historyButton}
+                        type="button"
+                        onClick={() => deleteWeeklyScale(row)}
+                        disabled={weeklyDeletingId === row.id}
+                        title="Excluir escala semanal"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </section>
+      )}
 
       {historyFuncionario && (
         <div className={styles.modalOverlay} role="presentation" onClick={() => setHistoryFuncionario(null)}>

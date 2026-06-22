@@ -15,6 +15,7 @@ async function findUserByMatricula(matricula) {
     .input("matricula", sql.VarChar, matricula)
     .query(`
       SELECT
+        TOP (1)
         ${matriculaColumn} AS matricula,
         ${passwordColumn} AS senha,
         ${nameColumn} AS name,
@@ -22,7 +23,6 @@ async function findUserByMatricula(matricula) {
         ${activeColumn} AS active
       FROM ${table}
       WHERE ${matriculaColumn} = @matricula
-      LIMIT 1
     `);
 
   return result.recordset[0] || null;

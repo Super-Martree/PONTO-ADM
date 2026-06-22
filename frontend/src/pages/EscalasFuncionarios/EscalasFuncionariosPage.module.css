@@ -106,6 +106,44 @@
   color: var(--red);
 }
 
+.tabs {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  width: fit-content;
+}
+
+.tab,
+.tabActive {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--text-muted);
+  display: inline-flex;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  justify-content: center;
+  min-height: 32px;
+  min-width: 132px;
+  padding: 0 14px;
+}
+
+.tab:hover {
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+.tabActive {
+  background: var(--green-mid);
+  color: #fff;
+}
+
 .summaryGrid {
   display: grid;
   gap: 10px;
@@ -374,7 +412,9 @@
 
 .filterSelect,
 .scaleSelect,
-.dateInput {
+.dateInput,
+.weeklyForm select,
+.weeklyForm input {
   background: #fbfcfb;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -386,6 +426,122 @@
   outline: 0;
   padding: 0 10px;
   width: 100%;
+}
+
+.weeklyCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+}
+
+.weeklyHeader {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.weeklyHeader h3 {
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.weeklyHeader p {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+.weeklyHeader svg {
+  color: var(--green-mid);
+}
+
+.weeklyForm {
+  align-items: end;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(220px, 1.2fr) 150px minmax(190px, 1fr) minmax(160px, 1fr) auto;
+}
+
+.weeklyForm label {
+  color: var(--text-muted);
+  display: grid;
+  font-size: 11px;
+  font-weight: 900;
+  gap: 6px;
+  text-transform: uppercase;
+}
+
+.weeklyForm button {
+  min-height: 32px;
+}
+
+.weeklyList {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow-x: auto;
+}
+
+.weeklyListHeader {
+  align-items: center;
+  background: #edf7f0;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 12px;
+}
+
+.weeklyListHeader strong {
+  color: var(--green-dark);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.weeklyListHeader span {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.weeklyEmpty {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 850;
+  padding: 22px;
+  text-align: center;
+}
+
+.weeklyTable {
+  border-collapse: collapse;
+  min-width: 720px;
+  width: 100%;
+}
+
+.weeklyTable th,
+.weeklyTable td {
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 750;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.weeklyTable th {
+  background: #fbfcfb;
+  color: var(--green-dark);
+  font-size: 10.5px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.weeklyTable tr:last-child td {
+  border-bottom: 0;
 }
 
 .tableScroller {
@@ -763,6 +919,10 @@
   .filterCard {
     grid-template-columns: 1fr;
   }
+
+  .weeklyForm {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 720px) {
@@ -770,6 +930,16 @@
   .topActions {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .tabs {
+    display: grid;
+    width: 100%;
+  }
+
+  .tab,
+  .tabActive {
+    width: 100%;
   }
 
   .summaryGrid {
@@ -785,9 +955,14 @@
   }
 
   .footerCount,
-  .pagination {
+  .pagination,
+  .weeklyForm {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .weeklyForm {
+    display: flex;
   }
 
   .historyDeleteButton,

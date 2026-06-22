@@ -4,10 +4,11 @@
   "version": "1.0.0",
   "description": "Frontend React da Martree para login, ponto e admin.",
   "scripts": {
-    "dev": "vite --host 192.168.18.75 --port 3000",
+    "dev": "vite --host 192.168.18.75 --port 3002",
+    "dev:alt": "vite --host 192.168.18.75 --port 3004 --strictPort",
     "build": "vite build",
-    "preview": "vite preview --host 192.168.18.75 --port 3000",
-    "start": "vite --host 192.168.18.75 --port 3000"
+    "preview": "vite preview --host 192.168.18.75 --port 3002",
+    "start": "vite --host 192.168.18.75 --port 3002"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.0.0",

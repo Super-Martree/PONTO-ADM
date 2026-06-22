@@ -23,6 +23,7 @@ const Ponto = lazy(() => import('./pages/Ponto'));
 const TratativasAjustarPontoPage = lazy(() => import('./pages/TratativasAjustarPonto'));
 const TratativasPendentesPage = lazy(() => import('./pages/TratativasPendentes'));
 const TratativasHistoricoPage = lazy(() => import('./pages/TratativasHistorico'));
+const BancoHorasPage = lazy(() => import('./pages/BancoHoras'));
 
 function readSession() {
   const rawUser = localStorage.getItem('user') || sessionStorage.getItem('user');
@@ -81,6 +82,8 @@ function renderPage(page, props = {}) {
       return <TratativasPendentesPage />;
     case 'tratativas-historico':
       return <TratativasHistoricoPage />;
+    case 'banco-horas':
+      return <BancoHorasPage />;
     default:
       return <Dashboard />;
   }

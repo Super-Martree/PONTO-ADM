@@ -1,0 +1,76 @@
+Sim. Agora você pode desenvolver sem derrubar o site ativo usando:
+
+  cd "C:\Users\user\Desktop\TOTTI\DEVELOPER\PONTO CPD ORIGINAL"
+  npm.cmd run dev:alt
+
+  Ele sobe em:
+
+  Desenvolvimento frontend: http://192.168.18.75:3004
+  Desenvolvimento backend:  http://127.0.0.1:3336
+
+  O serviço continua ativo em:
+
+  Site ativo: http://192.168.18.75:3002
+  Backend ativo: http://127.0.0.1:3335
+
+  Eu já testei o dev:alt e ele subiu corretamente nas portas 3004/3336. Também confirmei que o serviço
+  MartreePonto continua rodando automático.
+
+  Quando terminar uma alteração e quiser mandar para o site ativo:
+
+  npm.cmd run service:prepare
+  net stop MartreePonto
+  net start MartreePonto
+
+
+quando eu fizer uma alteracao vai ser feita no dev:alt ? depois eu subo pro original?
+
+
+• Sim.
+
+  Você edita os arquivos normalmente no projeto. Enquanto o npm.cmd run dev:alt estiver rodando, as
+  alterações aparecem no ambiente de desenvolvimento:
+
+  http://192.168.18.75:3004
+
+  http://192.168.18.75:3002
+
+  Quando quiser mandar as alterações para o original, rode:
+
+  cd "C:\Users\user\Desktop\TOTTI\DEVELOPER\PONTO CPD ORIGINAL"
+  npm.cmd run service:prepare
+  net stop MartreePonto
+  net start MartreePonto
+
+  Resumo: você desenvolve/testa no 3004; quando aprovar, gera o build e reinicia o serviço para publicar no
+  3002.
+
+
+› pq nao é run build?
+
+
+• Porque eu criei service:prepare como um nome mais explícito para “preparar o site que roda no serviço”.
+
+  Mas hoje ele faz exatamente isso:
+
+  "service:prepare": "npm.cmd run build --prefix frontend"
+
+  Ou seja, estes dois comandos têm o mesmo efeito no seu projeto:
+
+  npm.cmd run service:prepare
+
+  e
+
+  npm.cmd run build
+
+  No package.json principal, o build também aponta para o build do frontend:
+
+  "build": "npm.cmd run build --prefix frontend"
+
+  Então pode usar assim sem problema:
+
+  npm.cmd run build
+  net stop MartreePonto
+  net start MartreePonto
+
+  Eu só usei service:prepare para ficar claro que é o passo antes de atualizar o serviço do Windows.

@@ -137,3 +137,131 @@
   background: #edf5ff;
   color: var(--blue);
 }
+
+@media (max-width: 760px) {
+  .tableShell {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    overflow: visible;
+  }
+
+  .tableScroller {
+    overflow: visible;
+  }
+
+  .table {
+    border-collapse: separate;
+    border-spacing: 0 10px;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .table thead {
+    display: none;
+  }
+
+  .table tbody,
+  .table tr,
+  .table td {
+    display: block;
+    width: 100%;
+  }
+
+  .table tbody tr {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .table tbody tr:nth-child(even),
+  .table tbody tr:hover {
+    background: var(--surface);
+  }
+
+  .table td {
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    border-right: 0;
+    column-gap: 10px;
+    display: grid;
+    grid-template-columns: minmax(90px, 38%) 1fr;
+    min-height: 42px;
+    padding: 0 10px 0 0 !important;
+  }
+
+  .table td:last-child {
+    border-bottom: 0;
+  }
+
+  .table td::before {
+    align-items: center;
+    align-self: stretch;
+    background: var(--surface-2);
+    border-right: 1px solid var(--border);
+    color: var(--text-muted);
+    content: '';
+    display: flex;
+    font-size: 10px;
+    font-weight: 850;
+    padding: 0 10px;
+    text-transform: uppercase;
+  }
+
+  .table td:nth-child(1)::before { content: 'Data'; }
+  .table td:nth-child(2)::before { content: 'Escala'; }
+  .table td:nth-child(3)::before { content: 'Entrada'; }
+  .table td:nth-child(4)::before { content: 'Saida'; }
+  .table td:nth-child(5)::before { content: 'Entrada'; }
+  .table td:nth-child(6)::before { content: 'Saida'; }
+  .table td:nth-child(7)::before { content: 'Esperado'; }
+  .table td:nth-child(8)::before { content: 'Trabalhado'; }
+  .table td:nth-child(9)::before { content: 'Saldo'; }
+  .table td:nth-child(10)::before { content: 'Status'; }
+
+  .dateCell,
+  .metricCell,
+  .balanceCell,
+  .balanceNegative,
+  .statusCell,
+  .statusOk,
+  .statusProgress,
+  .statusPending,
+  .statusHoliday {
+    height: auto;
+    min-height: 42px;
+    white-space: normal;
+  }
+
+  .dateCell,
+  .metricCell {
+    background: transparent;
+  }
+
+  .dateCell[colspan] {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    display: block;
+    padding: 24px 12px !important;
+    text-align: center;
+  }
+
+  .dateCell[colspan]::before {
+    display: none;
+  }
+
+  .timeCell {
+    grid-template-columns: 24px 1fr;
+    height: 42px;
+    min-width: 0;
+  }
+
+  .timeCell span {
+    font-size: 11px;
+  }
+
+  .timeCell strong {
+    padding: 0 10px;
+  }
+}

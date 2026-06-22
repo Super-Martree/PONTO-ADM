@@ -1,6 +1,7 @@
 const {
   createFuncionario,
   deleteFuncionarioEscalaHistorico,
+  deleteFuncionarioEscalaSemanal,
   findFuncionarioById,
   findCurrentFuncionarioEscalaHistorico,
   findLatestFuncionarioEscalaHistorico,
@@ -8,12 +9,14 @@ const {
   getNextMatricula,
   insertFuncionarioAuditoria,
   listFuncionarioEscalasHistorico,
+  listFuncionarioEscalasSemanais,
   listFuncionarioAuditoria,
   listFuncionarios,
   updateFuncionario,
   updateFuncionarioEscala,
   updateFuncionarioStatus,
   upsertFuncionarioEscalaHistorico,
+  upsertFuncionarioEscalaSemanal,
 } = require("./funcionarios.repository");
 const bcrypt = require("bcryptjs");
 const { findEscalaById } = require("../escalas/escalas.repository");
@@ -72,7 +75,14 @@ function parseDateOnly(value) {
   }
 
   const date = new Date(`${text}T00:00:00.000Z`);
-  return Number.isNaN(date.getTime()) ? null : text;
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === text ? text : null;
+}
+
+function addDays(dateText, amount) {
+  const date = new Date(`${dateText}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) return null;
+  date.setUTCDate(date.getUTCDate() + amount);
+  return date.toISOString().slice(0, 10);
 }
 
 function getLocalDateOnly() {
@@ -323,6 +333,94 @@ async function excluirHistoricoEscalaFuncionario(user, idValue, historicoIdValue
   return funcionario;
 }
 
+async function listarEscalasSemanaisFuncionario(user, idValue) {
+  requireAdmin(user);
+  const id = parseId(idValue);
+  const current = await findFuncionarioById(id);
+
+  if (!current) {
+    throw createHttpError(404, "Funcionario nao encontrado.");
+  }
+
+  return listFuncionarioEscalasSemanais(current.matricula);
+}
+
+async function salvarEscalaSemanalFuncionario(user, idValue, payload) {
+  requireAdmin(user);
+  const id = parseId(idValue);
+  const current = await findFuncionarioById(id);
+
+  if (!current) {
+    throw createHttpError(404, "Funcionario nao encontrado.");
+  }
+
+  const escalaId = parseRequiredId(payload.escalaId, "Escala");
+  const escala = await findEscalaById(escalaId);
+
+  if (!escala || !escala.ativo) {
+    throw createHttpError(400, "Escala ativa nao encontrada.");
+  }
+
+  const semanaInicio = parseDateOnly(payload.semanaInicio);
+
+  if (!semanaInicio) {
+    throw createHttpError(400, "Inicio da semana obrigatorio.");
+  }
+
+  const semanaFim = addDays(semanaInicio, 6);
+  const motivo = String(payload.motivo || "").trim().slice(0, 255);
+
+  await upsertFuncionarioEscalaSemanal({
+    matricula: current.matricula,
+    escalaId,
+    semanaInicio,
+    semanaFim,
+    motivo,
+  });
+
+  await insertFuncionarioAuditoria([{
+    funcionarioId: current.id,
+    matricula: current.matricula,
+    campo: "Escala semanal",
+    valorAnterior: "-",
+    valorNovo: `${escala.nome} (${semanaInicio} a ${semanaFim})`,
+    ...auditActor(user),
+  }]);
+
+  return listFuncionarioEscalasSemanais(current.matricula);
+}
+
+async function excluirEscalaSemanalFuncionario(user, idValue, semanalIdValue) {
+  requireAdmin(user);
+  const id = parseId(idValue);
+  const semanalId = parseId(semanalIdValue);
+  const current = await findFuncionarioById(id);
+
+  if (!current) {
+    throw createHttpError(404, "Funcionario nao encontrado.");
+  }
+
+  const deleted = await deleteFuncionarioEscalaSemanal({
+    matricula: current.matricula,
+    semanalId,
+  });
+
+  if (!deleted) {
+    throw createHttpError(404, "Escala semanal nao encontrada.");
+  }
+
+  await insertFuncionarioAuditoria([{
+    funcionarioId: current.id,
+    matricula: current.matricula,
+    campo: "Exclusao de escala semanal",
+    valorAnterior: String(semanalId),
+    valorNovo: "-",
+    ...auditActor(user),
+  }]);
+
+  return listFuncionarioEscalasSemanais(current.matricula);
+}
+
 async function alterarStatusFuncionario(user, idValue, payload) {
   requireAdmin(user);
   const id = parseId(idValue);
@@ -356,8 +454,11 @@ module.exports = {
   atualizarFuncionario,
   buscarProximaMatricula,
   criarFuncionario,
+  excluirEscalaSemanalFuncionario,
   excluirHistoricoEscalaFuncionario,
+  listarEscalasSemanaisFuncionario,
   listarHistoricoEscalasFuncionario,
   listarAuditoriaFuncionario,
   listarFuncionarios,
+  salvarEscalaSemanalFuncionario,
 };

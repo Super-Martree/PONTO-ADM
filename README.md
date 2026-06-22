@@ -11,13 +11,13 @@ O projeto esta separado em duas aplicacoes:
 
 Portas usadas:
 
-- Frontend: `http://localhost:3000`
+- Frontend: `http://localhost:3002`
 - Backend: `http://localhost:3335`
 - Banco: Supabase PostgreSQL
 
 ## Fluxo Atual
 
-1. O usuario acessa `http://localhost:3000`.
+1. O usuario acessa `http://localhost:3002`.
 2. O login envia `POST /api/auth/login`.
 3. O Vite encaminha `/api` para `http://localhost:3335`.
 4. O backend consulta a tabela `"Usuarios"` no Supabase.
@@ -257,7 +257,7 @@ Funcionando:
 
 - Separacao `backend/` e `frontend/`.
 - API Express em `3335`.
-- Frontend React em `3000`.
+- Frontend React em `3002`.
 - Login com JWT em cookie `HttpOnly`.
 - `/api/auth/me` busca dados atualizados no banco.
 - Limite de tentativas no login.
@@ -297,7 +297,7 @@ npm.cmd run dev
 Esse comando inicia backend e frontend juntos:
 
 - Backend: `http://localhost:3335`
-- Frontend: `http://localhost:3000`
+- Frontend: `http://localhost:3002`
 
 Se precisar rodar separado:
 
@@ -309,7 +309,7 @@ npm.cmd run dev --prefix frontend
 Depois abra:
 
 ```text
-http://localhost:3000
+http://localhost:3002
 ```
 
 ## Instalar Dependencias

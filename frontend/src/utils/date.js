@@ -25,14 +25,22 @@ export function parseDateBrInput(value) {
   const text = String(value || '').trim();
   if (!text) return '';
 
-  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
-    return text;
+  const isoMatch = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    return isValidDateParts(isoMatch[1], isoMatch[2], isoMatch[3]) ? text : '';
   }
 
-  const match = text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  const compactMatch = text.match(/^(\d{2})(\d{2})(\d{4})$/);
+  if (compactMatch) {
+    return isValidDateParts(compactMatch[3], compactMatch[2], compactMatch[1])
+      ? `${compactMatch[3]}-${compactMatch[2]}-${compactMatch[1]}`
+      : '';
+  }
+
+  const match = text.match(/^(\d{2})[/-](\d{2})[/-](\d{4})$/);
   if (!match) return '';
 
-  return `${match[3]}-${match[2]}-${match[1]}`;
+  return isValidDateParts(match[3], match[2], match[1]) ? `${match[3]}-${match[2]}-${match[1]}` : '';
 }
 
 export function toBrDateInput(value) {
@@ -60,4 +68,10 @@ export function todayBrDateInput() {
   const offset = now.getTimezoneOffset() * 60000;
   const iso = new Date(now.getTime() - offset).toISOString().slice(0, 10);
   return toBrDateInput(iso);
+}
+
+function isValidDateParts(year, month, day) {
+  const iso = `${year}-${month}-${day}`;
+  const date = new Date(`${iso}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === iso;
 }

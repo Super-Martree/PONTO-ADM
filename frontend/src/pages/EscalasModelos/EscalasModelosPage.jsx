@@ -44,7 +44,7 @@ function makeDefaultWeek() {
 }
 
 function minutesToHours(minutes) {
-  return Number(((Number(minutes || 0)) / 60).toFixed(1));
+  return Number(minutes || 0) / 60;
 }
 
 function configFromDias(escala) {
@@ -103,8 +103,11 @@ function calcTotal(tipo, config) {
 }
 
 function formatHours(value) {
-  const number = Number(value || 0);
-  return Number.isInteger(number) ? String(number) : number.toFixed(1);
+  const minutes = Math.round(Number(value || 0) * 60);
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+
+  return remainingMinutes ? `${hours}:${String(remainingMinutes).padStart(2, '0')}` : String(hours);
 }
 
 function formatHoursInput(value) {
@@ -112,7 +115,7 @@ function formatHoursInput(value) {
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
 
-  return remainingMinutes ? `${hours},${String(remainingMinutes).padStart(2, '0')}` : String(hours);
+  return remainingMinutes ? `${hours}:${String(remainingMinutes).padStart(2, '0')}` : String(hours);
 }
 
 function parseHoursInput(value) {

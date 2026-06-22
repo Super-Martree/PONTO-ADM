@@ -68,6 +68,18 @@ function monthLabel(value) {
   return `${labels[month] || month}/${year}`;
 }
 
+function todayIso() {
+  const date = new Date();
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+}
+
+function isClosedPendingDay(row, today = todayIso()) {
+  return Boolean(row?.data)
+    && row.data < today
+    && ['Falta', 'Incompleto', 'Feriado Trabalhado'].includes(row.status);
+}
+
 function MiniBar({ value, total, tone = 'green' }) {
   const percent = total > 0 ? Math.min(100, Math.round((Number(value || 0) / total) * 100)) : 0;
 
@@ -414,7 +426,7 @@ export default function ResumoFuncionariosPage() {
                       </thead>
                       <tbody>
                         {(funcionario.dias || []).map((dia) => {
-                          const pending = ['Falta', 'Incompleto', 'Em andamento', 'Fora da escala'].includes(dia.status);
+                          const pending = isClosedPendingDay(dia);
 
                           return (
                             <tr key={dia.data}>

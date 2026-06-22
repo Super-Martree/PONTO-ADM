@@ -1,6 +1,7 @@
 import { apiFetch } from '../../utils/api';
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, CalendarDays, Clock, ClipboardList, Download, Filter, Hourglass, LogOut, MapPin } from 'lucide-react';
+import { AlertTriangle, CalendarDays, Clock, ClipboardList, Download, Filter, Hourglass, LogOut, MapPin, RefreshCw, Wallet } from 'lucide-react';
+import MonthPicker from '../../components/MonthPicker/MonthPicker';
 import PontoDoMesPage from '../PontoDoMes/PontoDoMesPage';
 import RecordsTable from './components/RecordsTable';
 import { parseDateBrInput, todayBrDateInput } from '../../utils/date';
@@ -47,6 +48,28 @@ function calculateWorkedMinutes(resumo = {}) {
   return total;
 }
 
+function todayMonth() {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function todayIso() {
+  const date = new Date();
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+}
+
+function isClosedPendingDay(row, today = todayIso()) {
+  return Boolean(row?.data)
+    && row.data < today
+    && ['Falta', 'Incompleto', 'Feriado Trabalhado'].includes(row.status);
+}
+
+function formatDateBr(value) {
+  const [year, month, day] = String(value || '').split('-');
+  return year && month && day ? `${day}/${month}/${year}` : value || '-';
+}
+
 export default function Ponto({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('ponto');
   const [now, setNow] = useState(() => new Date());
@@ -63,6 +86,10 @@ export default function Ponto({ user, onLogout }) {
   const [registros, setRegistros] = useState([]);
   const [loadingRegistros, setLoadingRegistros] = useState(false);
   const [registrosError, setRegistrosError] = useState('');
+  const [bancoPeriodo, setBancoPeriodo] = useState(todayMonth);
+  const [bancoHoras, setBancoHoras] = useState(null);
+  const [loadingBancoHoras, setLoadingBancoHoras] = useState(false);
+  const [bancoHorasError, setBancoHorasError] = useState('');
   const latestRecord = status?.batidas?.[status.batidas.length - 1];
   const workedMinutes = calculateWorkedMinutes(status?.resumo);
   const dailyGoalMinutes = Number.isFinite(Number(status?.resumo?.esperadoMinutos))
@@ -138,15 +165,18 @@ export default function Ponto({ user, onLogout }) {
     }
   }, [activeTab, periodo, customStart, customEnd, user?.matricula]);
 
+  useEffect(() => {
+    if (activeTab === 'banco-horas') {
+      loadBancoHoras();
+    }
+  }, [activeTab, bancoPeriodo, user?.matricula]);
+
   const limiteAtingido = Boolean(status?.resumo?.limiteAtingido);
   const registrosResumo = (() => {
+    const today = todayIso();
     const comRegistro = registros.filter((row) => Number(row.totalBatidas || 0) > 0).length;
     const incompletos = registros.filter((row) => row.status === 'Incompleto').length;
-    const pendencias = registros.filter((row) => (
-      row.status === 'Falta'
-      || row.status === 'Em andamento'
-      || row.status === 'Fora da escala'
-    )).length;
+    const pendencias = registros.filter((row) => isClosedPendingDay(row, today)).length;
 
     return {
       registros: String(comRegistro).padStart(2, '0'),
@@ -158,6 +188,14 @@ export default function Ponto({ user, onLogout }) {
     { label: 'Registros', value: registrosResumo.registros, tone: 'green', icon: ClipboardList },
     { label: 'Pendencias', value: registrosResumo.pendencias, tone: 'red', icon: AlertTriangle },
     { label: 'Incompletos', value: registrosResumo.incompletos, tone: 'amber', icon: Hourglass },
+  ];
+  const bancoFuncionario = bancoHoras?.funcionarios?.[0] || null;
+  const bancoMovimentos = bancoFuncionario?.movimentos || [];
+  const bancoResumo = [
+    { label: 'Saldo geral', value: bancoFuncionario?.saldoGeral || '+00:00', minutes: bancoFuncionario?.saldoGeralMinutos, icon: Wallet },
+    { label: 'Saldo do mes', value: bancoFuncionario?.saldoPeriodo || '+00:00', minutes: bancoFuncionario?.saldoPeriodoMinutos, icon: Clock },
+    { label: 'Ponto', value: bancoFuncionario?.saldoPonto || '+00:00', minutes: bancoFuncionario?.saldoPontoMinutos, icon: ClipboardList },
+    { label: 'Manual', value: bancoFuncionario?.saldoManual || '+00:00', minutes: bancoFuncionario?.saldoManualMinutos, icon: Hourglass },
   ];
 
   async function readResponse(response) {
@@ -224,6 +262,27 @@ export default function Ponto({ user, onLogout }) {
     }
   }
 
+  async function loadBancoHoras() {
+    const [ano, mes] = bancoPeriodo.split('-');
+    const params = new URLSearchParams({ ano, mes });
+
+    setLoadingBancoHoras(true);
+    setBancoHorasError('');
+
+    try {
+      const response = await apiFetch(`/api/banco-horas?${params.toString()}`, {
+        cache: 'no-store',
+        credentials: 'include',
+      });
+      const data = await readResponse(response);
+      setBancoHoras(data);
+    } catch (error) {
+      setBancoHorasError(error.message);
+    } finally {
+      setLoadingBancoHoras(false);
+    }
+  }
+
   function getCurrentLocation() {
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
@@ -271,6 +330,9 @@ export default function Ponto({ user, onLogout }) {
       if (activeTab === 'registros') {
         await loadRegistros();
       }
+      if (activeTab === 'banco-horas') {
+        await loadBancoHoras();
+      }
     } catch (error) {
       setFeedback({ type: 'error', message: error.message });
     } finally {
@@ -314,6 +376,14 @@ export default function Ponto({ user, onLogout }) {
           >
             <CalendarDays size={15} />
             <span className={styles.navLabel}>Escala Mês</span>
+          </button>
+          <button
+            className={`${styles.navBtn} ${activeTab === 'banco-horas' ? styles.active : ''}`}
+            type="button"
+            onClick={() => setActiveTab('banco-horas')}
+          >
+            <Wallet size={15} />
+            <span className={styles.navLabel}>Banco de Horas</span>
           </button>
         </nav>
 
@@ -480,9 +550,74 @@ export default function Ponto({ user, onLogout }) {
             {loadingRegistros && <p className={styles.success}>Carregando registros...</p>}
             <RecordsTable rows={registros} />
           </section>
-        ) : (
+        ) : activeTab === 'escala-mes' ? (
           <section className={styles.recordsPage} aria-label="Escala mes">
             <PontoDoMesPage employeeMode user={user} />
+          </section>
+        ) : (
+          <section className={styles.recordsPage} aria-label="Banco de horas">
+            <div className={styles.bancoHeader}>
+              <div>
+                <h2>Banco de Horas</h2>
+                <p>{user?.name || 'Funcionario'} - matricula {user?.matricula}</p>
+              </div>
+              <div className={styles.bancoActions}>
+                <MonthPicker value={bancoPeriodo} onChange={setBancoPeriodo} disabled={loadingBancoHoras} />
+                <button type="button" onClick={loadBancoHoras} disabled={loadingBancoHoras}>
+                  <RefreshCw size={13} /> Atualizar
+                </button>
+              </div>
+            </div>
+
+            {bancoHorasError && <p className={styles.error}>{bancoHorasError}</p>}
+            {loadingBancoHoras && <p className={styles.success}>Carregando banco de horas...</p>}
+
+            <div className={styles.bancoSummaryGrid}>
+              {bancoResumo.map((item) => {
+                const Icon = item.icon;
+                const negative = Number(item.minutes || 0) < 0;
+
+                return (
+                  <div key={item.label} className={styles.bancoSummaryCard}>
+                    <Icon size={18} />
+                    <small>{item.label}</small>
+                    <strong className={negative ? styles.negativeText : styles.positiveText}>{item.value}</strong>
+                  </div>
+                );
+              })}
+            </div>
+
+            <section className={styles.bancoTablePanel}>
+              <table className={styles.bancoTable}>
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Origem</th>
+                    <th>Horas</th>
+                    <th>Descricao</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {!loadingBancoHoras && bancoMovimentos.length === 0 && (
+                    <tr>
+                      <td colSpan="4" className={styles.bancoEmpty}>Nenhum movimento no periodo.</td>
+                    </tr>
+                  )}
+                  {bancoMovimentos.map((movimento, index) => (
+                    <tr key={`${movimento.origem}-${movimento.id || movimento.data}-${index}`}>
+                      <td>{formatDateBr(movimento.data)}</td>
+                      <td>
+                        <span className={styles.bancoTag}>{movimento.origem === 'manual' ? 'Manual' : 'Ponto'}</span>
+                      </td>
+                      <td className={Number(movimento.minutos || 0) < 0 ? styles.negativeText : styles.positiveText}>
+                        {movimento.saldo || formatMinutes(movimento.minutos, { signed: true })}
+                      </td>
+                      <td>{movimento.descricao || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
           </section>
         )}
       </main>

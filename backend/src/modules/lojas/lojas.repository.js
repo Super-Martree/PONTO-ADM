@@ -35,8 +35,8 @@ async function listLojas({ ativo } = {}) {
       bairro,
       cnpj,
       ativo,
-      to_char(created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at,
-      to_char(updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
+      CONVERT(varchar(19), created_at, 120) AS created_at,
+      CONVERT(varchar(19), updated_at, 120) AS updated_at
     FROM app_lojas
     ${where}
     ORDER BY ativo DESC, nome ASC, codigo ASC
@@ -58,8 +58,8 @@ async function findLojaById(id) {
         bairro,
         cnpj,
         ativo,
-        to_char(created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at,
-        to_char(updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
+        CONVERT(varchar(19), created_at, 120) AS created_at,
+        CONVERT(varchar(19), updated_at, 120) AS updated_at
       FROM app_lojas
       WHERE id = @id
     `);
@@ -72,10 +72,9 @@ async function findLojaByCodigo(codigo) {
   const result = await pool.request()
     .input("codigo", sql.Int, codigo)
     .query(`
-      SELECT id, codigo
+      SELECT TOP (1) id, codigo
       FROM app_lojas
       WHERE codigo = @codigo
-      LIMIT 1
     `);
 
   return result.recordset[0] || null;
@@ -102,17 +101,17 @@ async function createLoja(data) {
     .input("ativo", sql.Bit, data.ativo)
     .query(`
       INSERT INTO app_lojas (codigo, nome, cidade, bairro, cnpj, ativo)
+      OUTPUT
+        inserted.id,
+        inserted.codigo,
+        inserted.nome,
+        inserted.cidade,
+        inserted.bairro,
+        inserted.cnpj,
+        inserted.ativo,
+        CONVERT(varchar(19), inserted.created_at, 120) AS created_at,
+        CONVERT(varchar(19), inserted.updated_at, 120) AS updated_at
       VALUES (@codigo, @nome, @cidade, @bairro, @cnpj, @ativo)
-      RETURNING
-        id,
-        codigo,
-        nome,
-        cidade,
-        bairro,
-        cnpj,
-        ativo,
-        to_char(created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at,
-        to_char(updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
     `);
 
   return mapLoja(result.recordset[0]);
@@ -137,18 +136,18 @@ async function updateLoja(id, data) {
         bairro = @bairro,
         cnpj = @cnpj,
         ativo = @ativo,
-        updated_at = now()
+        updated_at = SYSDATETIME()
+      OUTPUT
+        inserted.id,
+        inserted.codigo,
+        inserted.nome,
+        inserted.cidade,
+        inserted.bairro,
+        inserted.cnpj,
+        inserted.ativo,
+        CONVERT(varchar(19), inserted.created_at, 120) AS created_at,
+        CONVERT(varchar(19), inserted.updated_at, 120) AS updated_at
       WHERE id = @id
-      RETURNING
-        id,
-        codigo,
-        nome,
-        cidade,
-        bairro,
-        cnpj,
-        ativo,
-        to_char(created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at,
-        to_char(updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
     `);
 
   return mapLoja(result.recordset[0]);
@@ -161,18 +160,18 @@ async function updateLojaStatus(id, ativo) {
     .input("ativo", sql.Bit, ativo)
     .query(`
       UPDATE app_lojas
-      SET ativo = @ativo, updated_at = now()
+      SET ativo = @ativo, updated_at = SYSDATETIME()
+      OUTPUT
+        inserted.id,
+        inserted.codigo,
+        inserted.nome,
+        inserted.cidade,
+        inserted.bairro,
+        inserted.cnpj,
+        inserted.ativo,
+        CONVERT(varchar(19), inserted.created_at, 120) AS created_at,
+        CONVERT(varchar(19), inserted.updated_at, 120) AS updated_at
       WHERE id = @id
-      RETURNING
-        id,
-        codigo,
-        nome,
-        cidade,
-        bairro,
-        cnpj,
-        ativo,
-        to_char(created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at,
-        to_char(updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
     `);
 
   return mapLoja(result.recordset[0]);

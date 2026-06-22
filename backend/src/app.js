@@ -10,6 +10,7 @@ const funcionariosRoutes = require("./modules/funcionarios/funcionarios.routes")
 const lojasRoutes = require("./modules/lojas/lojas.routes");
 const pontoRoutes = require("./modules/ponto/ponto.routes");
 const ajustarPontoRoutes = require("./modules/ajustarPonto/ajustarPonto.routes");
+const bancoHorasRoutes = require("./modules/bancoHoras/bancoHoras.routes");
 const errorHandler = require("./middlewares/errorHandler");
 
 const app = express();
@@ -41,7 +42,7 @@ app.get("/api/health", (req, res) => {
 app.get("/api/health/db", async (req, res, next) => {
   try {
     const pool = await getPool();
-    const result = await pool.request().query("SELECT current_database() AS \"databaseName\", current_user AS \"userName\"");
+    const result = await pool.request().query("SELECT DB_NAME() AS databaseName, SUSER_SNAME() AS userName");
     res.json({ ok: true, ...result.recordset[0] });
   } catch (error) {
     next(error);
@@ -56,6 +57,7 @@ app.use("/api/funcionarios", funcionariosRoutes);
 app.use("/api/lojas", lojasRoutes);
 app.use("/api/ponto", pontoRoutes);
 app.use("/api/admin", ajustarPontoRoutes);
+app.use("/api/banco-horas", bancoHorasRoutes);
 app.use(errorHandler);
 
 module.exports = app;
