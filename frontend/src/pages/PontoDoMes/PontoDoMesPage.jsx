@@ -38,6 +38,11 @@ function csvValue(value) {
   return `"${text}"`;
 }
 
+function csvTextValue(value) {
+  const text = String(value ?? '').trim();
+  return csvValue(text ? `\t${text}` : '');
+}
+
 function downloadCsv(filename, lines) {
   const blob = new Blob([`\uFEFF${lines.join('\r\n')}`], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
@@ -201,7 +206,7 @@ export default function PontoDoMesPage({ employeeMode = false, user = null }) {
         row.trabalhado || '',
         row.saldo || '',
         row.status || '',
-      ].map(csvValue).join(';')),
+      ].map(csvTextValue).join(';')),
     ];
     const nome = String(selectedFuncionario?.nome || selectedListFuncionario?.nome || 'funcionario')
       .trim()
