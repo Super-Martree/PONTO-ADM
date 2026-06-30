@@ -1,5 +1,5 @@
 import { apiFetch } from '../../utils/api';
-import { CalendarDays, ChevronDown, RefreshCw, Search, SlidersHorizontal } from 'lucide-react';
+import { CalendarDays, ChevronDown, Download, RefreshCw, Search, SlidersHorizontal } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import MonthPicker from '../../components/MonthPicker/MonthPicker';
 import styles from './PontoDoMesPage.module.css';
@@ -31,6 +31,23 @@ function formatDate(value) {
 function fieldWidth(items, selector, { min = 150, max = 340 } = {}) {
   const longest = items.reduce((size, item) => Math.max(size, String(selector(item) || '').length), 0);
   return Math.min(max, Math.max(min, (longest * 7) + 44));
+}
+
+function csvValue(value) {
+  const text = String(value ?? '').replaceAll('"', '""');
+  return `"${text}"`;
+}
+
+function downloadCsv(filename, lines) {
+  const blob = new Blob([`\uFEFF${lines.join('\r\n')}`], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 export default function PontoDoMesPage({ employeeMode = false, user = null }) {
@@ -156,6 +173,45 @@ export default function PontoDoMesPage({ employeeMode = false, user = null }) {
     setEmployeeSearch('');
   }
 
+  function exportExcel() {
+    const headers = [
+      'Data',
+      'Dia',
+      'Escala',
+      'Entrada',
+      'Saida',
+      'Entrada',
+      'Saida',
+      'Esperado',
+      'Trabalhado',
+      'Saldo',
+      'Status',
+    ];
+    const lines = [
+      headers.map(csvValue).join(';'),
+      ...rows.map((row) => [
+        formatDate(row.data),
+        row.diaSemana || '',
+        row.escala || activeEscala,
+        row.entrada1 || '',
+        row.saida1 || '',
+        row.entrada2 || '',
+        row.saida2 || '',
+        row.esperado || '',
+        row.trabalhado || '',
+        row.saldo || '',
+        row.status || '',
+      ].map(csvValue).join(';')),
+    ];
+    const nome = String(selectedFuncionario?.nome || selectedListFuncionario?.nome || 'funcionario')
+      .trim()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-zA-Z0-9-_]/g, '')
+      .toLowerCase();
+
+    downloadCsv(`escala-mes-${nome || 'funcionario'}-${periodo}.csv`, lines);
+  }
+
   return (
     <div className={styles.page}>
       <div className={styles.pageTitleBlock}>
@@ -275,9 +331,14 @@ export default function PontoDoMesPage({ employeeMode = false, user = null }) {
             <CalendarDays size={14} />
             <span>{periodo}</span>
           </div>
-          <button type="button" onClick={loadPontoMes}>
-            {loading ? <RefreshCw size={13} /> : <SlidersHorizontal size={13} />} Atualizar
-          </button>
+          <div className={styles.tableActions}>
+            <button type="button" onClick={exportExcel} disabled={loading || rows.length === 0}>
+              <Download size={13} /> Exportar Excel
+            </button>
+            <button type="button" onClick={loadPontoMes}>
+              {loading ? <RefreshCw size={13} /> : <SlidersHorizontal size={13} />} Atualizar
+            </button>
+          </div>
         </div>
         <div className={styles.tableScroller}>
           <table className={styles.table}>
