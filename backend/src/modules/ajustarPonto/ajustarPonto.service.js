@@ -194,6 +194,11 @@ function calculateWorkedMinutes(row) {
   return total;
 }
 
+function hasClosedPunchPair(totalBatidas) {
+  const value = Number(totalBatidas || 0);
+  return value > 0 && value % 2 === 0;
+}
+
 function buildFuncionario(rows) {
   const first = rows[0];
   if (!first) return null;
@@ -422,10 +427,10 @@ function buildRow({ funcionario, data, punches, adjustment, adjustmentHistory = 
     ...originalValues,
     horasPrevistas: formatMinutes(esperadoMinutos),
     horasRealizadas: formatMinutes(trabalhadoMinutos),
-    saldo: isInProgress ? null : formatMinutes(saldoMinutos, { signed: true }),
+    saldo: isInProgress && !hasClosedPunchPair(totalBatidas) ? null : formatMinutes(saldoMinutos, { signed: true }),
     esperadoMinutos,
     trabalhadoMinutos,
-    saldoMinutos: isInProgress ? null : saldoMinutos,
+    saldoMinutos: isInProgress && !hasClosedPunchPair(totalBatidas) ? null : saldoMinutos,
     status,
     pendente,
     ajustado: adjusted,

@@ -329,6 +329,11 @@ function hasPontoBatido(row) {
   return Number(row?.totalBatidas || 0) > 0;
 }
 
+function hasClosedPunchPair(row) {
+  const totalBatidas = Number(row?.totalBatidas || 0);
+  return totalBatidas > 0 && totalBatidas % 2 === 0;
+}
+
 function timeToMinutes(value) {
   if (!value) return null;
   const [hours, minutes] = String(value).split(":").map(Number);
@@ -518,8 +523,8 @@ function enrichPontoRow(row, escalaInfo, feriadosMap = new Map()) {
     esperado: formatMinutes(esperadoMinutos),
     trabalhadoMinutos,
     trabalhado: formatMinutes(trabalhadoMinutos),
-    saldoMinutos: status === "Em andamento" ? null : saldoMinutos,
-    saldo: status === "Em andamento" ? null : formatMinutes(saldoMinutos, { signed: true }),
+    saldoMinutos: status === "Em andamento" && !hasClosedPunchPair(row) ? null : saldoMinutos,
+    saldo: status === "Em andamento" && !hasClosedPunchPair(row) ? null : formatMinutes(saldoMinutos, { signed: true }),
     statusCodigo,
     status,
   };
@@ -653,7 +658,7 @@ function overrideMonthlyAdjustmentStatus(row) {
 }
 
 function suppressInProgressMonthlyBalance(row) {
-  if (row.status !== "Em andamento") {
+  if (row.status !== "Em andamento" || hasClosedPunchPair(row)) {
     return row;
   }
 
