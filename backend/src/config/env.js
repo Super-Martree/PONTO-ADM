@@ -27,9 +27,9 @@ const jwtSecret = required("JWT_SECRET");
 validateJwtSecret(jwtSecret);
 
 const defaultFrontendOrigins = [
-  "http://localhost:3002",
-  "http://127.0.0.1:3002",
-  "http://192.168.18.75:3002",
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  "http://192.168.18.75:3000",
 ];
 
 const configuredFrontendOrigins = (process.env.FRONTEND_ORIGINS || process.env.FRONTEND_ORIGIN || "")
@@ -43,13 +43,8 @@ module.exports = {
   port: Number(process.env.PORT || 3335),
   frontendOrigins: [...new Set([...configuredFrontendOrigins, ...defaultFrontendOrigins])],
   db: {
-    server: process.env.DB_HOST || process.env.SQLSERVER_HOST || required("DB_HOST"),
-    port: Number(process.env.DB_PORT || process.env.SQLSERVER_PORT || 1433),
-    database: process.env.DB_NAME || process.env.SQLSERVER_DATABASE || required("DB_NAME"),
-    user: process.env.DB_USER || process.env.SQLSERVER_USER || required("DB_USER"),
-    password: process.env.DB_PASSWORD || process.env.SQLSERVER_PASSWORD || required("DB_PASSWORD"),
-    encrypt: String(process.env.DB_ENCRYPT || "false").toLowerCase() === "true",
-    trustServerCertificate: String(process.env.DB_TRUST_SERVER_CERTIFICATE || "true").toLowerCase() === "true",
+    url: process.env.DATABASE_URL || process.env.SUPABASE_DB_URL || required("DB_URL"),
+    ssl: String(process.env.DB_SSL || "true").toLowerCase() === "true",
   },
   jwt: {
     secret: jwtSecret,

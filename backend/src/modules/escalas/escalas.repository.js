@@ -79,8 +79,8 @@ async function listEscalas() {
       e.tipo,
       e.ativo,
       e.configuracao_json,
-      CONVERT(varchar(19), e.created_at, 120) AS created_at,
-      CONVERT(varchar(19), e.updated_at, 120) AS updated_at,
+      to_char(e.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at,
+      to_char(e.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at,
       d.dia_semana,
       d.meta_minutos
     FROM app_escalas e
@@ -103,8 +103,8 @@ async function findEscalaById(id) {
         e.tipo,
         e.ativo,
         e.configuracao_json,
-        CONVERT(varchar(19), e.created_at, 120) AS created_at,
-        CONVERT(varchar(19), e.updated_at, 120) AS updated_at,
+        to_char(e.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at,
+        to_char(e.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at,
         d.dia_semana,
         d.meta_minutos
       FROM app_escalas e
@@ -131,8 +131,8 @@ async function createEscala(data) {
       .input("configuracaoJson", sql.NVarChar(sql.MAX), JSON.stringify(data.configuracao || null))
       .query(`
         INSERT INTO app_escalas (nome, tipo, ativo, configuracao_json)
-        OUTPUT inserted.id
         VALUES (@nome, @tipo, @ativo, @configuracaoJson)
+        RETURNING id
       `);
 
     const escalaId = escalaResult.recordset[0].id;
@@ -144,7 +144,7 @@ async function createEscala(data) {
         .input("metaMinutos", sql.Int, dia.meta_minutos)
         .query(`
           INSERT INTO app_escala_dias (escala_id, dia_semana, meta_minutos, ativo)
-          VALUES (@escalaId, @diaSemana, @metaMinutos, 1)
+          VALUES (@escalaId, @diaSemana, @metaMinutos, true)
         `);
     }
 
@@ -176,7 +176,7 @@ async function updateEscala(id, data) {
             tipo = @tipo,
             ativo = @ativo,
             configuracao_json = @configuracaoJson,
-            updated_at = SYSDATETIME()
+            updated_at = now()
         WHERE id = @id
       `);
 
@@ -186,17 +186,10 @@ async function updateEscala(id, data) {
         .input("diaSemana", sql.TinyInt, dia.dia_semana)
         .input("metaMinutos", sql.Int, dia.meta_minutos)
         .query(`
-          MERGE app_escala_dias AS target
-          USING (
-            SELECT @escalaId AS escala_id, @diaSemana AS dia_semana, @metaMinutos AS meta_minutos
-          ) AS source
-            ON target.escala_id = source.escala_id
-           AND target.dia_semana = source.dia_semana
-          WHEN MATCHED THEN
-            UPDATE SET meta_minutos = source.meta_minutos, ativo = 1
-          WHEN NOT MATCHED THEN
-            INSERT (escala_id, dia_semana, meta_minutos, ativo)
-            VALUES (source.escala_id, source.dia_semana, source.meta_minutos, 1);
+          INSERT INTO app_escala_dias (escala_id, dia_semana, meta_minutos, ativo)
+          VALUES (@escalaId, @diaSemana, @metaMinutos, true)
+          ON CONFLICT (escala_id, dia_semana)
+          DO UPDATE SET meta_minutos = EXCLUDED.meta_minutos, ativo = true
         `);
     }
 
@@ -215,9 +208,9 @@ async function updateEscalaStatus(id, ativo) {
     .input("ativo", sql.Bit, ativo)
     .query(`
       UPDATE app_escalas
-      SET ativo = @ativo, updated_at = SYSDATETIME()
-      OUTPUT inserted.id
+      SET ativo = @ativo, updated_at = now()
       WHERE id = @id
+      RETURNING id
     `);
 
   if (!result.recordset[0]) return null;

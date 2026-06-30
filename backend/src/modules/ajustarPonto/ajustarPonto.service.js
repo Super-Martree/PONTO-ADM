@@ -7,7 +7,7 @@ const {
   listOriginalPunches,
   saveAdjustment,
 } = require("./ajustarPonto.repository");
-const { listEscalasSemanaisByRange, listFeriadosByRange } = require("../ponto/ponto.repository");
+const { listFeriadosByRange } = require("../ponto/ponto.repository");
 const { resolveEscalaExpectedMinutes } = require("../escalas/escalaRuntime");
 
 const TIPOS_AJUSTE = new Set([
@@ -138,12 +138,6 @@ function getDiaSemana(dateText) {
   return day === 0 ? 7 : day;
 }
 
-const PENDING_PROBLEM_STATUSES = new Set(["FALTA", "INCOMPLETO", "TRABALHO_EM_FERIADO"]);
-
-function isClosedPendingDay(data, status) {
-  return Boolean(data) && data < getLocalDateOnly() && PENDING_PROBLEM_STATUSES.has(status);
-}
-
 function formatMinutes(totalMinutes, { signed = false } = {}) {
   const value = Number(totalMinutes || 0);
   const sign = value < 0 ? "-" : signed ? "+" : "";
@@ -227,40 +221,6 @@ function buildFuncionario(rows) {
   };
 }
 
-function buildEscalasSemanais(rows = []) {
-  const byWeek = new Map();
-
-  for (const row of rows) {
-    const weekKey = `${row.semanaInicio}|${row.semanalId}`;
-    if (!byWeek.has(weekKey)) {
-      byWeek.set(weekKey, {
-        semanalId: row.semanalId,
-        semanaInicio: row.semanaInicio,
-        semanaFim: row.semanaFim,
-        escala: row.escalaNome || "Sem escala",
-        escalaTipo: row.escalaTipo || "fixa",
-        escalaConfiguracao: row.escalaConfiguracao || null,
-        escalaDataInicio: row.semanaInicio,
-        diasEscala: new Map(),
-      });
-    }
-
-    if (row.diaSemana) {
-      byWeek.get(weekKey).diasEscala.set(Number(row.diaSemana), Number(row.metaMinutos || 0));
-    }
-  }
-
-  return [...byWeek.values()].sort((a, b) => a.semanaInicio.localeCompare(b.semanaInicio) || a.semanalId - b.semanalId);
-}
-
-function applyEscalaSemanal(funcionario, data) {
-  const semanal = [...(funcionario.escalasSemanais || [])].reverse().find((item) => (
-    item.semanaInicio <= data && item.semanaFim >= data
-  ));
-
-  return semanal ? { ...funcionario, ...semanal } : funcionario;
-}
-
 function groupPunches(punches) {
   const grouped = new Map();
 
@@ -287,13 +247,12 @@ function groupPunches(punches) {
 
 function buildRow({ funcionario, data, punches, adjustment, adjustmentHistory = [], feriado }) {
   const diaSemanaNumero = getDiaSemana(data);
-  const escalaFuncionario = applyEscalaSemanal(funcionario, data);
   const escalaMinutosOriginal = resolveEscalaExpectedMinutes({
-    tipo: escalaFuncionario.escalaTipo,
-    configuracao: escalaFuncionario.escalaConfiguracao,
-    dataInicio: escalaFuncionario.escalaDataInicio,
-    dataInicioPonto: escalaFuncionario.dataInicioPonto,
-    dias: escalaFuncionario.diasEscala,
+    tipo: funcionario.escalaTipo,
+    configuracao: funcionario.escalaConfiguracao,
+    dataInicio: funcionario.escalaDataInicio,
+    dataInicioPonto: funcionario.dataInicioPonto,
+    dias: funcionario.diasEscala,
   }, data);
   const original = punches.get(data) || {};
   const adjusted = Boolean(adjustment);
@@ -436,17 +395,20 @@ function buildRow({ funcionario, data, punches, adjustment, adjustmentHistory = 
     status = "FOLGA";
   } else if (isFeriado && totalBatidas > 0) {
     status = "TRABALHO_EM_FERIADO";
+    pendente = true;
   } else if (isFolga && totalBatidas > 0) {
     status = "TRABALHO_EM_FOLGA";
+    pendente = true;
   } else if (isInProgress) {
     status = "EM_ANDAMENTO";
+    pendente = true;
   } else if (esperadoMinutos > 0 && totalBatidas === 0) {
     status = "FALTA";
+    pendente = true;
   } else if (totalBatidas % 2 !== 0) {
     status = "INCOMPLETO";
+    pendente = true;
   }
-
-  pendente = isClosedPendingDay(data, status);
 
   return {
     data,
@@ -488,14 +450,12 @@ async function montarGrade({ funcionarioId, month }) {
   }
 
   const startDate = range.startDate;
-  const [punchesRows, ajustesMap, ajustesHistoricoMap, feriadosRows, semanaisRows] = await Promise.all([
+  const [punchesRows, ajustesMap, ajustesHistoricoMap, feriadosRows] = await Promise.all([
     listOriginalPunches({ matricula: funcionario.matricula, startDate, endDate: range.endDate }),
     listActiveAdjustments({ funcionarioId, startDate, endDate: range.endDate }),
     listAdjustmentsHistory({ funcionarioId, startDate, endDate: range.endDate }),
     listFeriadosByRange({ startDate, endDate: range.endDate }),
-    listEscalasSemanaisByRange({ matricula: funcionario.matricula, startDate, endDate: range.endDate }),
   ]);
-  funcionario.escalasSemanais = buildEscalasSemanais(semanaisRows);
   const punches = groupPunches(punchesRows);
   const feriadosMap = new Map(feriadosRows.map((feriado) => [feriado.data, feriado]));
   const dias = listDates(startDate, range.endDate).map((data) => buildRow({

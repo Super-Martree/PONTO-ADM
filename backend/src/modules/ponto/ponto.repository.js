@@ -1,5 +1,5 @@
 const { getPool, sql } = require("../../db/postgres");
-const { ensureEscalasConfigColumn, ensureEscalasSemanaisSchema, ensureLocaisPermitidosSchema, ensurePontoLocationColumns } = require("../../db/schema");
+const { ensureEscalasConfigColumn, ensureLocaisPermitidosSchema, ensurePontoLocationColumns } = require("../../db/schema");
 const env = require("../../config/env");
 const { sqlIdentifier } = require("../../utils/identifier");
 
@@ -33,7 +33,7 @@ function mapFeriado(row) {
 
 async function getTodayDate() {
   const pool = await getPool();
-  const result = await pool.request().query("SELECT CONVERT(varchar(10), CAST(SYSDATETIME() AS date), 23) AS data");
+  const result = await pool.request().query(`SELECT to_char((now() AT TIME ZONE '${APP_TIME_ZONE}')::date, 'YYYY-MM-DD') AS data`);
   return result.recordset[0].data;
 }
 
@@ -44,18 +44,18 @@ async function findLastPunch(matricula, startDate = null) {
     .input("startDate", sql.Date, startDate)
     .query(`
       SELECT
-        TOP (1)
         id,
         matricula,
-        CONVERT(varchar(10), data_ponto, 23) AS data_ponto,
-        CONVERT(varchar(5), hora_ponto, 108) AS hora_ponto,
-        CONVERT(varchar(19), data_hora, 120) AS data_hora,
+        to_char(data_ponto, 'YYYY-MM-DD') AS data_ponto,
+        to_char(hora_ponto, 'HH24:MI') AS hora_ponto,
+        to_char(data_hora, 'YYYY-MM-DD HH24:MI:SS') AS data_hora,
         tipo,
-        DATEDIFF(second, data_hora, SYSDATETIME()) AS segundos_desde_ultima
+        FLOOR(EXTRACT(EPOCH FROM ((now() AT TIME ZONE '${APP_TIME_ZONE}') - data_hora)))::int AS segundos_desde_ultima
       FROM app_ponto_registros
       WHERE matricula = @matricula
-        AND data_ponto >= COALESCE(@startDate, CONVERT(date, '19000101'))
+        AND data_ponto >= COALESCE(@startDate::date, DATE '1900-01-01')
       ORDER BY data_hora DESC, id DESC
+      LIMIT 1
     `);
 
   return result.recordset[0] || null;
@@ -71,18 +71,18 @@ async function listTodayPunches(matricula, startDate = null) {
       SELECT
         id,
         matricula,
-        CONVERT(varchar(10), data_ponto, 23) AS data_ponto,
-        CONVERT(varchar(5), hora_ponto, 108) AS hora_ponto,
-        CONVERT(varchar(19), data_hora, 120) AS data_hora,
+        to_char(data_ponto, 'YYYY-MM-DD') AS data_ponto,
+        to_char(hora_ponto, 'HH24:MI') AS hora_ponto,
+        to_char(data_hora, 'YYYY-MM-DD HH24:MI:SS') AS data_hora,
         tipo,
         latitude,
         longitude,
         accuracy_meters,
-        CONVERT(varchar(19), location_captured_at, 120) AS location_captured_at
+        to_char(location_captured_at, 'YYYY-MM-DD HH24:MI:SS') AS location_captured_at
       FROM app_ponto_registros
       WHERE matricula = @matricula
-        AND data_ponto = CAST(SYSDATETIME() AS date)
-        AND data_ponto >= COALESCE(@startDate, CONVERT(date, '19000101'))
+        AND data_ponto = (now() AT TIME ZONE '${APP_TIME_ZONE}')::date
+        AND data_ponto >= COALESCE(@startDate::date, DATE '1900-01-01')
       ORDER BY data_hora ASC, id ASC
     `);
 
@@ -99,9 +99,9 @@ async function listPunchesByRange({ matricula, startDate, endDate }) {
       SELECT
         id,
         matricula,
-        CONVERT(varchar(10), data_ponto, 23) AS data_ponto,
-        CONVERT(varchar(5), hora_ponto, 108) AS hora_ponto,
-        CONVERT(varchar(19), data_hora, 120) AS data_hora,
+        to_char(data_ponto, 'YYYY-MM-DD') AS data_ponto,
+        to_char(hora_ponto, 'HH24:MI') AS hora_ponto,
+        to_char(data_hora, 'YYYY-MM-DD HH24:MI:SS') AS data_hora,
         tipo
       FROM app_ponto_registros
       WHERE matricula = @matricula
@@ -125,29 +125,31 @@ async function getFuncionarioEscalaByMatricula(matricula) {
       SELECT
         CAST(u.${matriculaColumn} AS varchar(20)) AS matricula,
         u.${nameColumn} AS nome,
-        e.id AS [escalaId],
-        e.nome AS [escalaNome],
-        e.tipo AS [escalaTipo],
-        e.configuracao_json AS [escalaConfiguracao],
-        CONVERT(varchar(10), escala_hist.data_inicio, 23) AS [escalaDataInicio],
-        CONVERT(varchar(10), u.[DataInicioPonto], 23) AS [dataInicioPonto],
-        d.dia_semana AS [diaSemana],
-        d.meta_minutos AS [metaMinutos]
+        e.id AS "escalaId",
+        e.nome AS "escalaNome",
+        e.tipo AS "escalaTipo",
+        e.configuracao_json AS "escalaConfiguracao",
+        to_char(escala_hist.data_inicio, 'YYYY-MM-DD') AS "escalaDataInicio",
+        to_char(u."DataInicioPonto", 'YYYY-MM-DD') AS "dataInicioPonto",
+        d.dia_semana AS "diaSemana",
+        d.meta_minutos AS "metaMinutos"
       FROM ${table} u
-      OUTER APPLY (
-        SELECT TOP (1) h.escala_id, h.data_inicio
+      LEFT JOIN LATERAL (
+        SELECT h.escala_id, h.data_inicio
         FROM app_funcionario_escalas h
         WHERE h.matricula = CAST(u.${matriculaColumn} AS varchar(20))
-          AND h.data_inicio <= CAST(SYSDATETIME() AS date)
+          AND h.data_inicio <= (now() AT TIME ZONE '${APP_TIME_ZONE}')::date
         ORDER BY h.data_inicio DESC, h.id DESC
-      ) escala_hist
-      OUTER APPLY (
-        SELECT TOP (1) CAST(1 AS bit) AS has_history
+        LIMIT 1
+      ) escala_hist ON true
+      LEFT JOIN LATERAL (
+        SELECT true AS has_history
         FROM app_funcionario_escalas h
         WHERE h.matricula = CAST(u.${matriculaColumn} AS varchar(20))
-      ) escala_historico
-      LEFT JOIN app_escalas e ON e.id = CASE WHEN escala_historico.has_history = 1 THEN escala_hist.escala_id ELSE u.[EscalaId] END
-      LEFT JOIN app_escala_dias d ON d.escala_id = e.id AND d.ativo = 1
+        LIMIT 1
+      ) escala_historico ON true
+      LEFT JOIN app_escalas e ON e.id = CASE WHEN escala_historico.has_history THEN escala_hist.escala_id ELSE u."EscalaId" END
+      LEFT JOIN app_escala_dias d ON d.escala_id = e.id AND d.ativo = true
       WHERE CAST(u.${matriculaColumn} AS varchar(20)) = @matricula
       ORDER BY d.dia_semana ASC
     `);
@@ -164,9 +166,9 @@ async function listActiveAllowedPunchLocations() {
       nome,
       latitude,
       longitude,
-      raio_metros AS [raioMetros]
+      raio_metros AS "raioMetros"
     FROM app_ponto_locais_permitidos
-    WHERE ativo = 1
+    WHERE ativo = true
     ORDER BY nome ASC, id ASC
   `);
 
@@ -201,28 +203,28 @@ async function insertPunch({ matricula, tipo, location }) {
         accuracy_meters,
         location_captured_at
       )
-      OUTPUT
-        inserted.id,
-        inserted.matricula,
-        CONVERT(varchar(10), inserted.data_ponto, 23) AS data_ponto,
-        CONVERT(varchar(5), inserted.hora_ponto, 108) AS hora_ponto,
-        CONVERT(varchar(19), inserted.data_hora, 120) AS data_hora,
-        inserted.tipo,
-        inserted.latitude,
-        inserted.longitude,
-        inserted.accuracy_meters,
-        CONVERT(varchar(19), inserted.location_captured_at, 120) AS location_captured_at
       VALUES (
         @matricula,
-        CAST(SYSDATETIME() AS date),
-        CAST(SYSDATETIME() AS time(0)),
-        CAST(SYSDATETIME() AS datetime2(0)),
+        (now() AT TIME ZONE '${APP_TIME_ZONE}')::date,
+        (now() AT TIME ZONE '${APP_TIME_ZONE}')::time(0),
+        (now() AT TIME ZONE '${APP_TIME_ZONE}')::timestamp(0),
         @tipo,
         @latitude,
         @longitude,
         @accuracyMeters,
-        COALESCE(TRY_CONVERT(datetime2(0), @capturedAt, 127), CAST(SYSDATETIME() AS datetime2(0)))
+        COALESCE((@capturedAt::timestamptz AT TIME ZONE '${APP_TIME_ZONE}')::timestamp(0), (now() AT TIME ZONE '${APP_TIME_ZONE}')::timestamp(0))
       )
+      RETURNING
+        id,
+        matricula,
+        to_char(data_ponto, 'YYYY-MM-DD') AS data_ponto,
+        to_char(hora_ponto, 'HH24:MI') AS hora_ponto,
+        to_char(data_hora, 'YYYY-MM-DD HH24:MI:SS') AS data_hora,
+        tipo,
+        latitude,
+        longitude,
+        accuracy_meters,
+        to_char(location_captured_at, 'YYYY-MM-DD HH24:MI:SS') AS location_captured_at
     `);
 
   return mapRegistro(result.recordset[0]);
@@ -230,7 +232,7 @@ async function insertPunch({ matricula, tipo, location }) {
 
 async function listFeriadosByRange({ startDate, endDate }) {
   const pool = await getPool();
-  const exists = await pool.request().query("SELECT CASE WHEN OBJECT_ID('dbo.app_feriados', 'U') IS NULL THEN CAST(0 AS bit) ELSE CAST(1 AS bit) END AS [exists]");
+  const exists = await pool.request().query("SELECT to_regclass('public.app_feriados') IS NOT NULL AS \"exists\"");
 
   if (!exists.recordset[0]?.exists) {
     return [];
@@ -241,10 +243,10 @@ async function listFeriadosByRange({ startDate, endDate }) {
     .input("endDate", sql.Date, endDate)
     .query(`
       SELECT
-        CONVERT(varchar(10), data_feriado, 23) AS data,
+        to_char(data_feriado, 'YYYY-MM-DD') AS data,
         descricao
       FROM app_feriados
-      WHERE ativo = 1
+      WHERE ativo = true
         AND data_feriado >= @startDate
         AND data_feriado <= @endDate
       ORDER BY data_feriado ASC
@@ -271,47 +273,49 @@ async function listAdminTodayApuracao(apuracaoDate) {
     .input("apuracaoDate", sql.Date, apuracaoDate)
     .query(`
       SELECT
-        CONVERT(varchar(10), @apuracaoDate, 23) AS data,
+        to_char(@apuracaoDate::date, 'YYYY-MM-DD') AS data,
         CAST(u.${matriculaColumn} AS varchar(20)) AS matricula,
         u.${nameColumn} AS nome,
         l.nome AS loja,
-        e.id AS [escalaId],
-        e.nome AS [escalaNome],
-        e.tipo AS [escalaTipo],
-        e.configuracao_json AS [escalaConfiguracao],
-        CONVERT(varchar(10), escala_hist.data_inicio, 23) AS [escalaDataInicio],
-        MAX(CONVERT(varchar(10), u.[DataInicioPonto], 23)) AS [dataInicioPonto],
-        ed.meta_minutos AS [esperadoMinutos],
-        MAX(CASE WHEN p.tipo = 'entrada1' THEN CONVERT(varchar(5), p.hora_ponto, 108) END) AS entrada1,
-        MAX(CASE WHEN p.tipo = 'saida1' THEN CONVERT(varchar(5), p.hora_ponto, 108) END) AS saida1,
-        MAX(CASE WHEN p.tipo = 'entrada2' THEN CONVERT(varchar(5), p.hora_ponto, 108) END) AS entrada2,
-        MAX(CASE WHEN p.tipo = 'saida2' THEN CONVERT(varchar(5), p.hora_ponto, 108) END) AS saida2,
-        COUNT(p.id) AS [totalBatidas]
+        e.id AS "escalaId",
+        e.nome AS "escalaNome",
+        e.tipo AS "escalaTipo",
+        e.configuracao_json AS "escalaConfiguracao",
+        to_char(escala_hist.data_inicio, 'YYYY-MM-DD') AS "escalaDataInicio",
+        MAX(to_char(u."DataInicioPonto", 'YYYY-MM-DD')) AS "dataInicioPonto",
+        ed.meta_minutos AS "esperadoMinutos",
+        MAX(CASE WHEN p.tipo = 'entrada1' THEN to_char(p.hora_ponto, 'HH24:MI') END) AS entrada1,
+        MAX(CASE WHEN p.tipo = 'saida1' THEN to_char(p.hora_ponto, 'HH24:MI') END) AS saida1,
+        MAX(CASE WHEN p.tipo = 'entrada2' THEN to_char(p.hora_ponto, 'HH24:MI') END) AS entrada2,
+        MAX(CASE WHEN p.tipo = 'saida2' THEN to_char(p.hora_ponto, 'HH24:MI') END) AS saida2,
+        COUNT(p.id)::int AS "totalBatidas"
       FROM ${table} u
-      LEFT JOIN app_lojas l ON l.id = u.[LojaId]
-      OUTER APPLY (
-        SELECT TOP (1) h.escala_id, h.data_inicio
+      LEFT JOIN app_lojas l ON l.id = u."LojaId"
+      LEFT JOIN LATERAL (
+        SELECT h.escala_id, h.data_inicio
         FROM app_funcionario_escalas h
         WHERE h.matricula = CAST(u.${matriculaColumn} AS varchar(20))
           AND h.data_inicio <= @apuracaoDate
         ORDER BY h.data_inicio DESC, h.id DESC
-      ) escala_hist
-      OUTER APPLY (
-        SELECT TOP (1) CAST(1 AS bit) AS has_history
+        LIMIT 1
+      ) escala_hist ON true
+      LEFT JOIN LATERAL (
+        SELECT true AS has_history
         FROM app_funcionario_escalas h
         WHERE h.matricula = CAST(u.${matriculaColumn} AS varchar(20))
-      ) escala_historico
-      LEFT JOIN app_escalas e ON e.id = CASE WHEN escala_historico.has_history = 1 THEN escala_hist.escala_id ELSE u.[EscalaId] END
+        LIMIT 1
+      ) escala_historico ON true
+      LEFT JOIN app_escalas e ON e.id = CASE WHEN escala_historico.has_history THEN escala_hist.escala_id ELSE u."EscalaId" END
       LEFT JOIN app_escala_dias ed
         ON ed.escala_id = e.id
-        AND ed.ativo = 1
-        AND ed.dia_semana = ((DATEPART(weekday, @apuracaoDate) + @@DATEFIRST + 5) % 7) + 1
+        AND ed.ativo = true
+        AND ed.dia_semana = EXTRACT(ISODOW FROM @apuracaoDate::date)
       LEFT JOIN app_ponto_registros p
         ON p.matricula = CAST(u.${matriculaColumn} AS varchar(20))
         AND p.data_ponto = @apuracaoDate
-      WHERE u.${activeColumn} = 1
+      WHERE u.${activeColumn} = true
         AND LOWER(CAST(u.${roleColumn} AS varchar(50))) NOT IN ('admin', 'administrador', 'gestor')
-        AND @apuracaoDate >= COALESCE(CAST(u.[DataInicioPonto] AS date), CONVERT(date, '19000101'))
+        AND @apuracaoDate >= COALESCE(u."DataInicioPonto"::date, DATE '1900-01-01')
       GROUP BY u.${matriculaColumn}, u.${nameColumn}, l.nome, e.id, e.nome, e.tipo, e.configuracao_json, escala_hist.data_inicio, ed.meta_minutos
       ORDER BY u.${nameColumn}, u.${matriculaColumn}
     `);
@@ -344,78 +348,44 @@ async function listAdminMonthlyPunches({ matricula, startDate, endDate }) {
       CAST(u.${matriculaColumn} AS varchar(20)) AS matricula,
       u.${nameColumn} AS nome,
       l.nome AS loja,
-      e.id AS [escalaId],
-      e.nome AS [escalaNome],
-      e.tipo AS [escalaTipo],
-      e.configuracao_json AS [escalaConfiguracao],
-      CONVERT(varchar(10), h.data_inicio, 23) AS [escalaDataInicio],
-      CONVERT(varchar(10), u.[DataInicioPonto], 23) AS [dataInicioPonto],
-      ed.dia_semana AS [diaSemana],
-      ed.meta_minutos AS [metaMinutos],
-      CONVERT(varchar(10), p.data_ponto, 23) AS data_ponto,
-      CONVERT(varchar(5), p.hora_ponto, 108) AS hora_ponto,
+      e.id AS "escalaId",
+      e.nome AS "escalaNome",
+      e.tipo AS "escalaTipo",
+      e.configuracao_json AS "escalaConfiguracao",
+      to_char(h.data_inicio, 'YYYY-MM-DD') AS "escalaDataInicio",
+      to_char(u."DataInicioPonto", 'YYYY-MM-DD') AS "dataInicioPonto",
+      ed.dia_semana AS "diaSemana",
+      ed.meta_minutos AS "metaMinutos",
+      to_char(p.data_ponto, 'YYYY-MM-DD') AS data_ponto,
+      to_char(p.hora_ponto, 'HH24:MI') AS hora_ponto,
       p.tipo
     FROM ${table} u
-    LEFT JOIN app_lojas l ON l.id = u.[LojaId]
-    OUTER APPLY (
-      SELECT TOP (1) fh.escala_id, fh.data_inicio
+    LEFT JOIN app_lojas l ON l.id = u."LojaId"
+    LEFT JOIN LATERAL (
+      SELECT fh.escala_id, fh.data_inicio
       FROM app_funcionario_escalas fh
       WHERE fh.matricula = CAST(u.${matriculaColumn} AS varchar(20))
         AND fh.data_inicio <= @endDate
       ORDER BY fh.data_inicio DESC, fh.id DESC
-    ) h
-    OUTER APPLY (
-      SELECT TOP (1) CAST(1 AS bit) AS has_history
+      LIMIT 1
+    ) h ON true
+    LEFT JOIN LATERAL (
+      SELECT true AS has_history
       FROM app_funcionario_escalas fh
       WHERE fh.matricula = CAST(u.${matriculaColumn} AS varchar(20))
-    ) escala_historico
-    LEFT JOIN app_escalas e ON e.id = CASE WHEN escala_historico.has_history = 1 THEN h.escala_id ELSE u.[EscalaId] END
-    LEFT JOIN app_escala_dias ed ON ed.escala_id = e.id AND ed.ativo = 1
+      LIMIT 1
+    ) escala_historico ON true
+    LEFT JOIN app_escalas e ON e.id = CASE WHEN escala_historico.has_history THEN h.escala_id ELSE u."EscalaId" END
+    LEFT JOIN app_escala_dias ed ON ed.escala_id = e.id AND ed.ativo = true
     LEFT JOIN app_ponto_registros p
       ON p.matricula = CAST(u.${matriculaColumn} AS varchar(20))
       AND p.data_ponto >= @startDate
       AND p.data_ponto <= @endDate
-      AND (u.[DataInicioPonto] IS NULL OR p.data_ponto >= u.[DataInicioPonto])
-    WHERE u.${activeColumn} = 1
+      AND (u."DataInicioPonto" IS NULL OR p.data_ponto >= u."DataInicioPonto")
+    WHERE u.${activeColumn} = true
       AND LOWER(CAST(u.${roleColumn} AS varchar(50))) NOT IN ('admin', 'administrador', 'gestor')
       ${employeeFilter}
     ORDER BY u.${nameColumn}, u.${matriculaColumn}, p.data_ponto, p.data_hora, p.id, ed.dia_semana
-  `);
-
-  return result.recordset;
-}
-
-async function listEscalasSemanaisByRange({ matricula, startDate, endDate }) {
-  await Promise.all([ensureEscalasConfigColumn(), ensureEscalasSemanaisSchema()]);
-  const pool = await getPool();
-  const request = pool.request()
-    .input("startDate", sql.Date, startDate)
-    .input("endDate", sql.Date, endDate);
-  const employeeFilter = matricula ? "AND s.matricula = @matricula" : "";
-
-  if (matricula) {
-    request.input("matricula", sql.VarChar(20), matricula);
-  }
-
-  const result = await request.query(`
-    SELECT
-      s.matricula,
-      s.id AS [semanalId],
-      CONVERT(varchar(10), s.semana_inicio, 23) AS [semanaInicio],
-      CONVERT(varchar(10), s.semana_fim, 23) AS [semanaFim],
-      e.id AS [escalaId],
-      e.nome AS [escalaNome],
-      e.tipo AS [escalaTipo],
-      e.configuracao_json AS [escalaConfiguracao],
-      d.dia_semana AS [diaSemana],
-      d.meta_minutos AS [metaMinutos]
-    FROM app_funcionario_escalas_semanais s
-    INNER JOIN app_escalas e ON e.id = s.escala_id AND e.ativo = 1
-    LEFT JOIN app_escala_dias d ON d.escala_id = e.id AND d.ativo = 1
-    WHERE s.semana_inicio <= @endDate
-      AND s.semana_fim >= @startDate
-      ${employeeFilter}
-    ORDER BY s.matricula, s.semana_inicio ASC, s.id ASC, d.dia_semana ASC
   `);
 
   return result.recordset;
@@ -436,18 +406,18 @@ async function listLatestPunches(limit = 6) {
     .input("limit", sql.Int, limit)
     .query(`
       SELECT
-        TOP (@limit)
         p.matricula,
         u.${nameColumn} AS nome,
-        CONVERT(varchar(10), p.data_ponto, 23) AS data_ponto,
-        CONVERT(varchar(5), p.hora_ponto, 108) AS hora_ponto,
+        to_char(p.data_ponto, 'YYYY-MM-DD') AS data_ponto,
+        to_char(p.hora_ponto, 'HH24:MI') AS hora_ponto,
         p.tipo
       FROM app_ponto_registros p
       INNER JOIN ${table} u
         ON CAST(u.${matriculaColumn} AS varchar(20)) = p.matricula
       WHERE LOWER(CAST(u.${roleColumn} AS varchar(50))) NOT IN ('admin', 'administrador', 'gestor')
-        AND (u.[DataInicioPonto] IS NULL OR p.data_ponto >= u.[DataInicioPonto])
+        AND (u."DataInicioPonto" IS NULL OR p.data_ponto >= u."DataInicioPonto")
       ORDER BY p.data_hora DESC, p.id DESC
+      LIMIT @limit
     `);
 
   return result.recordset;
@@ -459,7 +429,6 @@ module.exports = {
   getTodayDate,
   insertPunch,
   isFeriado,
-  listEscalasSemanaisByRange,
   listActiveAllowedPunchLocations,
   listAdminApuracaoRange,
   listAdminTodayApuracao,

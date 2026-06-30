@@ -6,13 +6,10 @@ const {
   atualizarFuncionario,
   buscarProximaMatricula,
   criarFuncionario,
-  excluirEscalaSemanalFuncionario,
   excluirHistoricoEscalaFuncionario,
-  listarEscalasSemanaisFuncionario,
   listarHistoricoEscalasFuncionario,
   listarAuditoriaFuncionario,
   listarFuncionarios,
-  salvarEscalaSemanalFuncionario,
 } = require("./funcionarios.service");
 
 const router = express.Router();
@@ -59,33 +56,6 @@ router.get("/:id/escalas-historico", async (req, res, next) => {
   try {
     const historico = await listarHistoricoEscalasFuncionario(req.user, req.params.id);
     res.json({ historico });
-  } catch (error) {
-    handleRouteError(error, res, next);
-  }
-});
-
-router.get("/:id/escalas-semanais", async (req, res, next) => {
-  try {
-    const escalas = await listarEscalasSemanaisFuncionario(req.user, req.params.id);
-    res.json({ escalas });
-  } catch (error) {
-    handleRouteError(error, res, next);
-  }
-});
-
-router.post("/:id/escalas-semanais", async (req, res, next) => {
-  try {
-    const escalas = await salvarEscalaSemanalFuncionario(req.user, req.params.id, req.body || {});
-    res.status(201).json({ message: "Escala semanal salva com sucesso.", escalas });
-  } catch (error) {
-    handleRouteError(error, res, next);
-  }
-});
-
-router.delete("/:id/escalas-semanais/:semanalId", async (req, res, next) => {
-  try {
-    const escalas = await excluirEscalaSemanalFuncionario(req.user, req.params.id, req.params.semanalId);
-    res.json({ message: "Escala semanal excluida com sucesso.", escalas });
   } catch (error) {
     handleRouteError(error, res, next);
   }

@@ -3,10 +3,12 @@ const { ensureEscalasConfigColumn } = require("../../db/schema");
 const env = require("../../config/env");
 const { sqlIdentifier } = require("../../utils/identifier");
 
+const APP_TIME_ZONE = "America/Sao_Paulo";
+
 async function ensureAjustesSchema({ required = false } = {}) {
   const pool = await getPool();
   const result = await pool.request().query(`
-    SELECT CASE WHEN OBJECT_ID('dbo.app_ponto_ajustes', 'U') IS NULL THEN CAST(0 AS bit) ELSE CAST(1 AS bit) END AS [existsTable]
+    SELECT to_regclass('public.app_ponto_ajustes') IS NOT NULL AS "existsTable"
   `);
   const existsTable = Boolean(result.recordset[0]?.existsTable);
 
@@ -32,13 +34,23 @@ async function getAjustesCapabilities() {
   const pool = await getPool();
   const result = await pool.request().query(`
     SELECT
-      CASE WHEN EXISTS (
+      EXISTS (
         SELECT 1
-        FROM sys.columns
-        WHERE object_id = OBJECT_ID('dbo.app_ponto_ajustes')
-          AND name = 'meta_minutos_override'
-      ) THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END AS [hasMetaOverride],
-      CAST(1 AS bit) AS [supportsEscalaOverride]
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'app_ponto_ajustes'
+          AND column_name = 'meta_minutos_override'
+      ) AS "hasMetaOverride",
+      COALESCE((
+        SELECT pg_get_constraintdef(c.oid) LIKE '%MARCAR_TRABALHO%'
+        FROM pg_constraint c
+        JOIN pg_class t ON t.oid = c.conrelid
+        JOIN pg_namespace n ON n.oid = t.relnamespace
+        WHERE n.nspname = 'public'
+          AND t.relname = 'app_ponto_ajustes'
+          AND c.conname = 'ck_app_ponto_ajustes_tipo'
+        LIMIT 1
+      ), true) AS "supportsEscalaOverride"
   `);
 
   return {
@@ -82,37 +94,39 @@ async function findFuncionarioContextById(funcionarioId) {
     .input("funcionarioId", sql.Int, funcionarioId)
     .query(`
       SELECT
-        u.[Id] AS [funcionarioId],
+        u."Id" AS "funcionarioId",
         CAST(u.${matriculaColumn} AS varchar(20)) AS matricula,
         u.${nameColumn} AS nome,
-        u.[LojaId] AS [lojaId],
+        u."LojaId" AS "lojaId",
         l.nome AS loja,
-        e.id AS [escalaId],
-        e.nome AS [escalaNome],
-        e.tipo AS [escalaTipo],
-        e.configuracao_json AS [escalaConfiguracao],
-        CONVERT(varchar(10), escala_hist.data_inicio, 23) AS [escalaDataInicio],
-        CONVERT(varchar(10), u.[DataInicioPonto], 23) AS [dataInicioPonto],
-        d.dia_semana AS [diaSemana],
-        d.meta_minutos AS [metaMinutos]
+        e.id AS "escalaId",
+        e.nome AS "escalaNome",
+        e.tipo AS "escalaTipo",
+        e.configuracao_json AS "escalaConfiguracao",
+        to_char(escala_hist.data_inicio, 'YYYY-MM-DD') AS "escalaDataInicio",
+        to_char(u."DataInicioPonto", 'YYYY-MM-DD') AS "dataInicioPonto",
+        d.dia_semana AS "diaSemana",
+        d.meta_minutos AS "metaMinutos"
       FROM ${table} u
-      LEFT JOIN app_lojas l ON l.id = u.[LojaId]
-      OUTER APPLY (
-        SELECT TOP (1) h.escala_id, h.data_inicio
+      LEFT JOIN app_lojas l ON l.id = u."LojaId"
+      LEFT JOIN LATERAL (
+        SELECT h.escala_id, h.data_inicio
         FROM app_funcionario_escalas h
         WHERE h.matricula = CAST(u.${matriculaColumn} AS varchar(20))
-          AND h.data_inicio <= CAST(SYSDATETIME() AS date)
+          AND h.data_inicio <= (now() AT TIME ZONE '${APP_TIME_ZONE}')::date
         ORDER BY h.data_inicio DESC, h.id DESC
-      ) escala_hist
-      OUTER APPLY (
-        SELECT TOP (1) CAST(1 AS bit) AS has_history
+        LIMIT 1
+      ) escala_hist ON true
+      LEFT JOIN LATERAL (
+        SELECT true AS has_history
         FROM app_funcionario_escalas h
         WHERE h.matricula = CAST(u.${matriculaColumn} AS varchar(20))
-      ) escala_historico
-      LEFT JOIN app_escalas e ON e.id = CASE WHEN escala_historico.has_history = 1 THEN escala_hist.escala_id ELSE u.[EscalaId] END
-      LEFT JOIN app_escala_dias d ON d.escala_id = e.id AND d.ativo = 1
-      WHERE u.[Id] = @funcionarioId
-        AND u.${activeColumn} = 1
+        LIMIT 1
+      ) escala_historico ON true
+      LEFT JOIN app_escalas e ON e.id = CASE WHEN escala_historico.has_history THEN escala_hist.escala_id ELSE u."EscalaId" END
+      LEFT JOIN app_escala_dias d ON d.escala_id = e.id AND d.ativo = true
+      WHERE u."Id" = @funcionarioId
+        AND u.${activeColumn} = true
         AND LOWER(CAST(u.${roleColumn} AS varchar(50))) NOT IN ('admin', 'administrador', 'gestor')
       ORDER BY d.dia_semana ASC
     `);
@@ -128,8 +142,8 @@ async function listOriginalPunches({ matricula, startDate, endDate }) {
     .input("endDate", sql.Date, endDate)
     .query(`
       SELECT
-        CONVERT(varchar(10), data_ponto, 23) AS data,
-        CONVERT(varchar(5), hora_ponto, 108) AS hora,
+        to_char(data_ponto, 'YYYY-MM-DD') AS data,
+        to_char(hora_ponto, 'HH24:MI') AS hora,
         tipo
       FROM app_ponto_registros
       WHERE matricula = @matricula
@@ -143,51 +157,27 @@ async function listOriginalPunches({ matricula, startDate, endDate }) {
 
 function metaOverrideSelect(capabilities) {
   return capabilities.hasMetaOverride
-    ? "meta_minutos_override AS [metaMinutosOverride]"
-    : "CAST(NULL AS int) AS [metaMinutosOverride]";
+    ? "meta_minutos_override AS \"metaMinutosOverride\""
+    : "CAST(NULL AS int) AS \"metaMinutosOverride\"";
 }
 
 function ajusteSelect(capabilities) {
   return `
     id,
-    funcionario_id AS [funcionarioId],
+    funcionario_id AS "funcionarioId",
     matricula,
-    CONVERT(varchar(10), data_ponto, 23) AS data,
-    CONVERT(varchar(5), entrada1, 108) AS entrada1,
-    CONVERT(varchar(5), saida1, 108) AS saida1,
-    CONVERT(varchar(5), entrada2, 108) AS entrada2,
-    CONVERT(varchar(5), saida2, 108) AS saida2,
-    tipo_ajuste AS [tipoAjuste],
+    to_char(data_ponto, 'YYYY-MM-DD') AS data,
+    to_char(entrada1, 'HH24:MI') AS entrada1,
+    to_char(saida1, 'HH24:MI') AS saida1,
+    to_char(entrada2, 'HH24:MI') AS entrada2,
+    to_char(saida2, 'HH24:MI') AS saida2,
+    tipo_ajuste AS "tipoAjuste",
     ${metaOverrideSelect(capabilities)},
     motivo,
     observacao,
     ativo,
-    COALESCE(created_by, 'Usuario nao registrado') AS [createdBy],
-    CONVERT(varchar(19), created_at, 120) AS [createdAt]
-  `;
-}
-
-function ajusteOutputSelect(capabilities) {
-  const metaOutput = capabilities.hasMetaOverride
-    ? "inserted.meta_minutos_override AS [metaMinutosOverride]"
-    : "CAST(NULL AS int) AS [metaMinutosOverride]";
-
-  return `
-    inserted.id,
-    inserted.funcionario_id AS [funcionarioId],
-    inserted.matricula,
-    CONVERT(varchar(10), inserted.data_ponto, 23) AS data,
-    CONVERT(varchar(5), inserted.entrada1, 108) AS entrada1,
-    CONVERT(varchar(5), inserted.saida1, 108) AS saida1,
-    CONVERT(varchar(5), inserted.entrada2, 108) AS entrada2,
-    CONVERT(varchar(5), inserted.saida2, 108) AS saida2,
-    inserted.tipo_ajuste AS [tipoAjuste],
-    ${metaOutput},
-    inserted.motivo,
-    inserted.observacao,
-    inserted.ativo,
-    COALESCE(inserted.created_by, 'Usuario nao registrado') AS [createdBy],
-    CONVERT(varchar(19), inserted.created_at, 120) AS [createdAt]
+    COALESCE(created_by, 'Usuario nao registrado') AS "createdBy",
+    to_char(created_at, 'YYYY-MM-DD HH24:MI:SS') AS "createdAt"
   `;
 }
 
@@ -207,7 +197,7 @@ async function listActiveAdjustments({ funcionarioId, startDate, endDate }) {
       WHERE funcionario_id = @funcionarioId
         AND data_ponto >= @startDate
         AND data_ponto <= @endDate
-        AND ativo = 1
+        AND ativo = true
       ORDER BY data_ponto ASC, id DESC
     `);
 
@@ -267,8 +257,9 @@ async function findActiveAdjustmentByDate({ funcionarioId, data }) {
       FROM app_ponto_ajustes
       WHERE funcionario_id = @funcionarioId
         AND data_ponto = @data
-        AND ativo = 1
+        AND ativo = true
       ORDER BY id DESC
+      LIMIT 1
     `);
 
   return mapAjuste(result.recordset[0]);
@@ -294,7 +285,7 @@ async function listActiveAdjustmentsByRange({ matricula, startDate, endDate }) {
     FROM app_ponto_ajustes
     WHERE data_ponto >= @startDate
       AND data_ponto <= @endDate
-      AND ativo = 1
+      AND ativo = true
       ${matriculaFilter}
     ORDER BY data_ponto ASC, id DESC
   `);
@@ -324,26 +315,25 @@ async function saveAdjustment({ funcionarioId, matricula, data, payload, created
     throw error;
   }
 
-  const pool = await getPool();
-  const transaction = new sql.Transaction(pool);
+  const transaction = new sql.Transaction();
   await transaction.begin();
 
   try {
-    await new sql.Request(transaction)
+    await new sql.Request(transaction.client)
       .input("funcionarioId", sql.Int, funcionarioId)
       .input("data", sql.Date, data)
       .query(`
         UPDATE app_ponto_ajustes
-        SET ativo = 0, updated_at = SYSDATETIME()
+        SET ativo = false, updated_at = now()
         WHERE funcionario_id = @funcionarioId
           AND data_ponto = @data
-          AND ativo = 1
+          AND ativo = true
       `);
 
     const metaColumnInsert = capabilities.hasMetaOverride ? "meta_minutos_override, " : "";
     const metaColumnValue = capabilities.hasMetaOverride ? "@metaMinutosOverride, " : "";
 
-    const result = await new sql.Request(transaction)
+    const result = await new sql.Request(transaction.client)
       .input("funcionarioId", sql.Int, funcionarioId)
       .input("matricula", sql.VarChar(20), matricula)
       .input("data", sql.Date, data)
@@ -362,12 +352,12 @@ async function saveAdjustment({ funcionarioId, matricula, data, payload, created
           entrada1, saida1, entrada2, saida2,
           tipo_ajuste, ${metaColumnInsert}motivo, observacao, created_by
         )
-        OUTPUT ${ajusteOutputSelect(capabilities)}
         VALUES (
           @funcionarioId, @matricula, @data,
-          TRY_CONVERT(time(0), @entrada1), TRY_CONVERT(time(0), @saida1), TRY_CONVERT(time(0), @entrada2), TRY_CONVERT(time(0), @saida2),
+          @entrada1::time, @saida1::time, @entrada2::time, @saida2::time,
           @tipoAjuste, ${metaColumnValue}@motivo, @observacao, @createdBy
         )
+        RETURNING ${ajusteSelect(capabilities)}
       `);
 
     await transaction.commit();
@@ -380,23 +370,23 @@ async function saveAdjustment({ funcionarioId, matricula, data, payload, created
 
 async function clearAdjustment({ funcionarioId, data, ajusteId = null }) {
   await ensureAjustesSchema({ required: true });
-  const pool = await getPool();
-  const transaction = new sql.Transaction(pool);
+  const transaction = new sql.Transaction();
   await transaction.begin();
 
   try {
-    const selectedResult = await new sql.Request(transaction)
+    const selectedResult = await new sql.Request(transaction.client)
       .input("funcionarioId", sql.Int, funcionarioId)
       .input("data", sql.Date, data)
       .input("ajusteId", sql.BigInt, ajusteId)
       .query(`
-        SELECT TOP (1) id, ativo
+        SELECT id, ativo
         FROM app_ponto_ajustes
         WHERE funcionario_id = @funcionarioId
           AND data_ponto = @data
-          AND (@ajusteId IS NULL OR id = @ajusteId)
-          AND (@ajusteId IS NOT NULL OR ativo = 1)
+          AND (@ajusteId::bigint IS NULL OR id = @ajusteId)
+          AND (@ajusteId::bigint IS NOT NULL OR ativo = true)
         ORDER BY id DESC
+        LIMIT 1
       `);
     const selected = selectedResult.recordset[0];
 
@@ -405,29 +395,31 @@ async function clearAdjustment({ funcionarioId, data, ajusteId = null }) {
       return { changed: 0, mode: "none" };
     }
 
-    const latestResult = await new sql.Request(transaction)
+    const latestResult = await new sql.Request(transaction.client)
       .input("funcionarioId", sql.Int, funcionarioId)
       .input("data", sql.Date, data)
       .query(`
-        SELECT TOP (1) id
+        SELECT id
         FROM app_ponto_ajustes
         WHERE funcionario_id = @funcionarioId
           AND data_ponto = @data
         ORDER BY id DESC
+        LIMIT 1
       `);
     const latestId = latestResult.recordset[0]?.id || null;
 
     if (!Boolean(selected.ativo)) {
-      const activeResult = await new sql.Request(transaction)
+      const activeResult = await new sql.Request(transaction.client)
         .input("funcionarioId", sql.Int, funcionarioId)
         .input("data", sql.Date, data)
         .query(`
-          SELECT TOP (1) id
+          SELECT id
           FROM app_ponto_ajustes
           WHERE funcionario_id = @funcionarioId
             AND data_ponto = @data
-            AND ativo = 1
+            AND ativo = true
           ORDER BY id DESC
+          LIMIT 1
         `);
       const hasActive = Boolean(activeResult.recordset[0]);
 
@@ -436,7 +428,7 @@ async function clearAdjustment({ funcionarioId, data, ajusteId = null }) {
         return { changed: 0, mode: "not_latest" };
       }
 
-      await new sql.Request(transaction)
+      await new sql.Request(transaction.client)
         .input("id", sql.BigInt, selected.id)
         .query(`
           DELETE FROM app_ponto_ajustes
@@ -451,21 +443,22 @@ async function clearAdjustment({ funcionarioId, data, ajusteId = null }) {
       };
     }
 
-    const previousResult = await new sql.Request(transaction)
+    const previousResult = await new sql.Request(transaction.client)
       .input("funcionarioId", sql.Int, funcionarioId)
       .input("data", sql.Date, data)
       .input("selectedId", sql.BigInt, selected.id)
       .query(`
-        SELECT TOP (1) id
+        SELECT id
         FROM app_ponto_ajustes
         WHERE funcionario_id = @funcionarioId
           AND data_ponto = @data
           AND id < @selectedId
         ORDER BY id DESC
+        LIMIT 1
       `);
     const restored = previousResult.recordset[0]?.id || null;
 
-    await new sql.Request(transaction)
+    await new sql.Request(transaction.client)
       .input("id", sql.BigInt, selected.id)
       .query(`
         DELETE FROM app_ponto_ajustes
@@ -473,21 +466,21 @@ async function clearAdjustment({ funcionarioId, data, ajusteId = null }) {
       `);
 
     if (restored) {
-      await new sql.Request(transaction)
+      await new sql.Request(transaction.client)
         .input("funcionarioId", sql.Int, funcionarioId)
         .input("data", sql.Date, data)
         .query(`
           UPDATE app_ponto_ajustes
-          SET ativo = 0, updated_at = SYSDATETIME()
+          SET ativo = false, updated_at = now()
           WHERE funcionario_id = @funcionarioId
             AND data_ponto = @data
         `);
 
-      await new sql.Request(transaction)
+      await new sql.Request(transaction.client)
         .input("id", sql.BigInt, restored)
         .query(`
           UPDATE app_ponto_ajustes
-          SET ativo = 1, updated_at = SYSDATETIME()
+          SET ativo = true, updated_at = now()
           WHERE id = @id
         `);
     }

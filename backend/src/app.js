@@ -42,7 +42,7 @@ app.get("/api/health", (req, res) => {
 app.get("/api/health/db", async (req, res, next) => {
   try {
     const pool = await getPool();
-    const result = await pool.request().query("SELECT DB_NAME() AS databaseName, SUSER_SNAME() AS userName");
+    const result = await pool.request().query("SELECT current_database() AS \"databaseName\", current_user AS \"userName\"");
     res.json({ ok: true, ...result.recordset[0] });
   } catch (error) {
     next(error);

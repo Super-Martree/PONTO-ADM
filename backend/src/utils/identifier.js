@@ -7,7 +7,7 @@ function sqlIdentifier(value, fallback) {
     throw new Error(`Identificador SQL invalido: ${candidate}`);
   }
 
-  return `[${candidate.replace(/]/g, "]]")}]`;
+  return `"${candidate.replace(/"/g, "\"\"")}"`;
 }
 
 module.exports = {

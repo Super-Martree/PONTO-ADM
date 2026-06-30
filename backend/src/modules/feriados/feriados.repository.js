@@ -17,7 +17,7 @@ function mapFeriado(row) {
 async function hasFeriadosTable() {
   const pool = await getPool();
   const result = await pool.request().query(`
-    SELECT CASE WHEN OBJECT_ID('dbo.app_feriados', 'U') IS NULL THEN CAST(0 AS bit) ELSE CAST(1 AS bit) END AS [exists]
+    SELECT to_regclass('public.app_feriados') IS NOT NULL AS "exists"
   `);
   return Boolean(result.recordset[0]?.exists);
 }
@@ -31,10 +31,10 @@ async function listFeriados() {
 
   const pool = await getPool();
   const result = await pool.request().query(`
-      SELECT
-        id,
-      CONVERT(varchar(10), data_feriado, 23) AS data,
-      CASE (((DATEPART(weekday, data_feriado) + @@DATEFIRST + 5) % 7) + 1)
+    SELECT
+      id,
+      to_char(data_feriado, 'YYYY-MM-DD') AS data,
+      CASE EXTRACT(ISODOW FROM data_feriado)
         WHEN 1 THEN 'Segunda'
         WHEN 2 THEN 'Terca'
         WHEN 3 THEN 'Quarta'
@@ -42,11 +42,11 @@ async function listFeriados() {
         WHEN 5 THEN 'Sexta'
         WHEN 6 THEN 'Sabado'
         WHEN 7 THEN 'Domingo'
-      END AS [diaSemana],
+      END AS "diaSemana",
       descricao,
       ativo,
-      CONVERT(varchar(19), created_at, 120) AS created_at,
-      CONVERT(varchar(19), updated_at, 120) AS updated_at
+      to_char(created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at,
+      to_char(updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
     FROM app_feriados
     ORDER BY data_feriado ASC, id ASC
   `);
@@ -67,8 +67,8 @@ async function findFeriadoById(id) {
     .query(`
       SELECT
         id,
-        CONVERT(varchar(10), data_feriado, 23) AS data,
-        CASE (((DATEPART(weekday, data_feriado) + @@DATEFIRST + 5) % 7) + 1)
+        to_char(data_feriado, 'YYYY-MM-DD') AS data,
+        CASE EXTRACT(ISODOW FROM data_feriado)
           WHEN 1 THEN 'Segunda'
           WHEN 2 THEN 'Terca'
           WHEN 3 THEN 'Quarta'
@@ -76,11 +76,11 @@ async function findFeriadoById(id) {
           WHEN 5 THEN 'Sexta'
           WHEN 6 THEN 'Sabado'
           WHEN 7 THEN 'Domingo'
-        END AS [diaSemana],
+        END AS "diaSemana",
         descricao,
         ativo,
-        CONVERT(varchar(19), created_at, 120) AS created_at,
-        CONVERT(varchar(19), updated_at, 120) AS updated_at
+        to_char(created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at,
+        to_char(updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
       FROM app_feriados
       WHERE id = @id
     `);
@@ -96,8 +96,8 @@ async function createFeriado(data) {
     .input("ativo", sql.Bit, data.ativo)
     .query(`
       INSERT INTO app_feriados (data_feriado, descricao, ativo)
-      OUTPUT inserted.id
       VALUES (@data, @descricao, @ativo)
+      RETURNING id
     `);
 
   return findFeriadoById(result.recordset[0].id);
@@ -115,9 +115,9 @@ async function updateFeriado(id, data) {
       SET data_feriado = @data,
           descricao = @descricao,
           ativo = @ativo,
-          updated_at = SYSDATETIME()
-      OUTPUT inserted.id
+          updated_at = now()
       WHERE id = @id
+      RETURNING id
     `);
 
   if (!result.recordset[0]) return null;
@@ -132,9 +132,9 @@ async function updateFeriadoStatus(id, ativo) {
     .query(`
       UPDATE app_feriados
       SET ativo = @ativo,
-          updated_at = SYSDATETIME()
-      OUTPUT inserted.id
+          updated_at = now()
       WHERE id = @id
+      RETURNING id
     `);
 
   if (!result.recordset[0]) return null;
