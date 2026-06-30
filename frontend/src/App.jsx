@@ -16,6 +16,7 @@ const EscalasFuncionariosPage = lazy(() => import('./pages/EscalasFuncionarios')
 const FeriadosPage = lazy(() => import('./pages/Feriados'));
 const Funcionarios = lazy(() => import('./pages/Funcionarios'));
 const LojasPage = lazy(() => import('./pages/Lojas'));
+const BancoHorasPage = lazy(() => import('./pages/BancoHoras'));
 const PontoDoMesPage = lazy(() => import('./pages/PontoDoMes'));
 const ResumoFuncionariosPage = lazy(() => import('./pages/ResumoFuncionarios'));
 const Relatorios = lazy(() => import('./pages/Relatorios'));
@@ -23,7 +24,6 @@ const Ponto = lazy(() => import('./pages/Ponto'));
 const TratativasAjustarPontoPage = lazy(() => import('./pages/TratativasAjustarPonto'));
 const TratativasPendentesPage = lazy(() => import('./pages/TratativasPendentes'));
 const TratativasHistoricoPage = lazy(() => import('./pages/TratativasHistorico'));
-const BancoHorasPage = lazy(() => import('./pages/BancoHoras'));
 
 function readSession() {
   const rawUser = localStorage.getItem('user') || sessionStorage.getItem('user');
@@ -59,6 +59,8 @@ function renderPage(page, props = {}) {
       return <Apuracao initialState={props.pageState} />;
     case 'resumo-funcionarios':
       return <ResumoFuncionariosPage />;
+    case 'banco-horas':
+      return <BancoHorasPage />;
     case 'ponto-do-mes':
       return <PontoDoMesPage />;
     case 'relatorios':
@@ -82,8 +84,6 @@ function renderPage(page, props = {}) {
       return <TratativasPendentesPage />;
     case 'tratativas-historico':
       return <TratativasHistoricoPage />;
-    case 'banco-horas':
-      return <BancoHorasPage />;
     default:
       return <Dashboard />;
   }

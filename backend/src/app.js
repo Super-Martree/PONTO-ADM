@@ -56,8 +56,8 @@ app.use("/api/feriados", feriadosRoutes);
 app.use("/api/funcionarios", funcionariosRoutes);
 app.use("/api/lojas", lojasRoutes);
 app.use("/api/ponto", pontoRoutes);
-app.use("/api/admin", ajustarPontoRoutes);
 app.use("/api/banco-horas", bancoHorasRoutes);
+app.use("/api/admin", ajustarPontoRoutes);
 app.use(errorHandler);
 
 module.exports = app;
