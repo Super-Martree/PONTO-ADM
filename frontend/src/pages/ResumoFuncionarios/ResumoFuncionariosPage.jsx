@@ -77,7 +77,7 @@ function todayIso() {
 function isClosedPendingDay(row, today = todayIso()) {
   return Boolean(row?.data)
     && row.data < today
-    && ['Falta', 'Incompleto', 'Feriado Trabalhado'].includes(row.status);
+    && ['Falta', 'Incompleto', 'Em andamento', 'Fora da escala'].includes(row.status);
 }
 
 function MiniBar({ value, total, tone = 'green' }) {

@@ -106,7 +106,7 @@ function todayIso() {
 function isClosedPendingDay(row, today = todayIso()) {
   return Boolean(row?.data)
     && row.data < today
-    && ['falta', 'incompleto', 'feriado trabalhado'].includes(String(row.status || '').toLowerCase());
+    && ['falta', 'incompleto', 'em andamento', 'fora da escala'].includes(String(row.status || '').toLowerCase());
 }
 
 function buildMonthlyTrends(rows = []) {

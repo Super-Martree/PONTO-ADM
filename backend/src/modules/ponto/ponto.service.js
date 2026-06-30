@@ -186,6 +186,18 @@ function toDateOnly(date) {
   return date.toISOString().slice(0, 10);
 }
 
+function todaySaoPauloDateOnly() {
+  const parts = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
 function maxDateOnly(a, b) {
   if (!a) return b || null;
   if (!b) return a || null;
@@ -669,6 +681,19 @@ function suppressInProgressMonthlyBalance(row) {
   };
 }
 
+function isPendingClosedDay(dia, today = todaySaoPauloDateOnly()) {
+  const status = String(dia?.status || "");
+
+  return Boolean(dia?.data)
+    && dia.data < today
+    && (
+      status === "Falta"
+      || status === "Incompleto"
+      || status === "Em andamento"
+      || status === "Fora da escala"
+    );
+}
+
 function summarizePontoDias(dias = []) {
   const diasValidos = dias.filter((dia) => dia.status);
   const saldoMinutos = diasValidos.reduce((total, dia) => (
@@ -678,12 +703,7 @@ function summarizePontoDias(dias = []) {
   const trabalhados = diasValidos.filter((dia) => Number(dia.trabalhadoMinutos || 0) > 0).length;
   const faltas = diasValidos.filter((dia) => dia.status === "Falta").length;
   const incompletos = diasValidos.filter((dia) => dia.status === "Incompleto").length;
-  const pendentes = diasValidos.filter((dia) => (
-    dia.status === "Falta"
-    || dia.status === "Incompleto"
-    || dia.status === "Em andamento"
-    || dia.status === "Fora da escala"
-  )).length;
+  const pendentes = diasValidos.filter((dia) => isPendingClosedDay(dia)).length;
   const ajustados = diasValidos.filter((dia) => dia.ajustado).length;
 
   return {
@@ -874,9 +894,7 @@ async function getAdminTodayApuracao(user, query = {}) {
   const completos = funcionarios.filter((item) => (
     item.status === "Completo" || item.status === "Folga" || item.status === "Feriado" || item.status === "Feriado Trabalhado"
   )).length;
-  const pendencias = funcionarios.filter((item) => (
-    item.status === "Falta" || item.status === "Incompleto" || item.status === "Em andamento" || item.status === "Fora da escala"
-  )).length;
+  const pendencias = funcionarios.filter((item) => isPendingClosedDay(item)).length;
 
   return {
     data,
@@ -1151,7 +1169,7 @@ async function getAdminPontoDoMes(user, query = {}) {
     folgas: closedDias.filter((dia) => dia.status === "Folga").length,
     feriados: closedDias.filter((dia) => dia.statusCodigo === "feriado").length,
     aTrabalhar: closedDias.filter((dia) => dia.status === "A trabalhar").length,
-    pendencias: closedDias.filter((dia) => dia.status === "Incompleto" || dia.status === "Em andamento").length,
+    pendencias: closedDias.filter((dia) => isPendingClosedDay(dia)).length,
     esperado: formatMinutes(closedDias.reduce((total, dia) => total + dia.esperadoMinutos, 0)),
     trabalhado: formatMinutes(closedDias.reduce((total, dia) => total + dia.trabalhadoMinutos, 0)),
     saldo: formatMinutes(closedDias.reduce((total, dia) => total + dia.saldoMinutos, 0), { signed: true }),
@@ -1296,9 +1314,7 @@ async function getAdminApuracaoPeriodo(user, query = {}) {
   const completos = funcionarios.filter((item) => (
     item.status === "Completo" || item.status === "Folga" || item.status === "Feriado" || item.status === "Feriado Trabalhado"
   )).length;
-  const pendencias = funcionarios.filter((item) => (
-    item.status === "Falta" || item.status === "Incompleto" || item.status === "Em andamento"
-  )).length;
+  const pendencias = funcionarios.filter((item) => isPendingClosedDay(item)).length;
 
   return {
     data: range.startDate === range.endDate ? range.startDate : null,
